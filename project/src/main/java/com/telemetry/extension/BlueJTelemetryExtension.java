@@ -1,4 +1,3 @@
-
 package com.telemetry.extension;
 
 import bluej.extensions2.BlueJ;
@@ -16,12 +15,23 @@ import bluej.extensions2.PackageNotFoundException;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
+import com.telemetry.events.EventType;
+import com.telemetry.events.TelemetryEvent;
+import com.telemetry.events.TelemetryRecorder;
+import com.telemetry.session.SessionManager;
 import java.time.LocalDateTime;
+import com.telemetry.reports.JsonExporter;
+import java.nio.file.Path;
+import java.io.IOException;
+import java.time.format.DateTimeFormatter;
 
 public class BlueJTelemetryExtension extends Extension implements PackageListener, CompileListener, ClassListener {
     
     private final Map<String, Set<String>> knownClasses = new ConcurrentHashMap<>();
+    private final SessionManager sessionManager = new SessionManager();
+    private final TelemetryRecorder recorder = sessionManager;
+    private String currentProjectName;
+    private final JsonExporter jsonExporter = new JsonExporter();
 
     private String packageKey(bluej.extensions2.BPackage pkg) {
         try {
@@ -43,11 +53,16 @@ public class BlueJTelemetryExtension extends Extension implements PackageListene
     }
 
     
+    
     @Override
     public void packageOpened(PackageEvent event) {
         try {
             String name = event.getPackage().getProject().getName();
             String key = packageKey(event.getPackage());
+
+            if (key == null) {
+                return;
+            }
 
             Set<String> classes = ConcurrentHashMap.newKeySet();
 
@@ -57,22 +72,68 @@ public class BlueJTelemetryExtension extends Extension implements PackageListene
 
             knownClasses.put(key, classes);
 
+            if (!sessionManager.isActive()) {
+                currentProjectName = name;
+                sessionManager.startSession();
+
+                record(EventType.PROJECT_OPENED, null, Map.of());
+            }
+
             log("PROJECT OPENED: " + name);
+
         } catch (ExtensionException e) {
             log("Unable to identify project: " + e.getMessage());
         }
     }
 
 
+
+    
+    
+    
     @Override
     public void packageClosing(PackageEvent event) {
-        System.out.println("PACKAGE CLOSING");
+
+        if (sessionManager.isActive()) {
+
+            record(EventType.PROJECT_CLOSED, null, Map.of());
+            sessionManager.endSession();
+
+            log("SESSION ENDED");
+            log("TOTAL EVENTS: "
+                    + sessionManager.getEvents().size());
+
+            try {
+                String timestamp = LocalDateTime.now().format(
+                    DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
+                );
+
+                Path output = Path.of(
+                    System.getProperty("user.home"),
+                    "bluej",
+                    "telemetry-reports",
+                    "session-" + timestamp + ".json"
+                );
+
+                jsonExporter.export(sessionManager, output);
+
+                log("JSON EXPORTED: " + output);
+
+            } catch (IOException e) {
+                log("JSON EXPORT FAILED: " + e.getMessage());
+            }
+        }
+
+        knownClasses.clear();
     }
+
+
 
     @Override
     public void compileStarted(CompileEvent event) {
         if (event.isUserGeneratedCompilation()) {
             log("COMPILATION STARTED");
+            record(EventType.COMPILATION_STARTED, null, Map.of());
         }
     }
 
@@ -80,6 +141,7 @@ public class BlueJTelemetryExtension extends Extension implements PackageListene
     public void compileSucceeded(CompileEvent event) {
         if (event.isUserGeneratedCompilation()) {
             log("COMPILATION SUCCESS");
+            record(EventType.COMPILATION_SUCCESS, null, Map.of());
         }
     }
 
@@ -87,6 +149,7 @@ public class BlueJTelemetryExtension extends Extension implements PackageListene
     public void compileFailed(CompileEvent event) {
         if (event.isUserGeneratedCompilation()) {
             log("COMPILATION FAILED");
+            record(EventType.COMPILATION_FAILURE, null, Map.of());
         }
     }
 
@@ -96,6 +159,9 @@ public class BlueJTelemetryExtension extends Extension implements PackageListene
             log("COMPILATION ERROR");
             System.out.println("Line: " + event.getErrorLineNumber());
             System.out.println("Message: " + event.getErrorMessage());
+            record(EventType.COMPILATION_ERROR, null, Map.of("line", String.valueOf(event.getErrorLineNumber()),
+                "message", String.valueOf(event.getErrorMessage())
+            ));
         }
     }
 
@@ -104,6 +170,10 @@ public class BlueJTelemetryExtension extends Extension implements PackageListene
         if (event.isUserGeneratedCompilation()) {
             log("COMPILATION WARNING");
             System.out.println("Message: " + event.getErrorMessage());
+            record(EventType.COMPILATION_WARNING, null, Map.of(
+                "line", String.valueOf(event.getErrorLineNumber()),
+                "message", String.valueOf(event.getErrorMessage())
+            ));
         }
     }
 
@@ -128,48 +198,55 @@ public class BlueJTelemetryExtension extends Extension implements PackageListene
 
         if (classes.add(name)) {
             log("CLASS CREATED: " + name);
+            record(EventType.CLASS_CREATED, name, Map.of());
             return;
         }
 
         if (!event.isClassCompiled() && !event.hasError()) {
             log("CLASS MODIFIED: " + name);
+            record(EventType.CLASS_MODIFIED, name, Map.of());
         }
+        
     }
 
 
     @Override
     public void classNameChanged(ClassEvent event) {
         String key = packageKey(event.getPackage());
-        Set<String> classes = knownClasses.get(key);
 
         if (key == null) {
             return;
         }
+
+        Set<String> classes = knownClasses.get(key);
 
         if (classes != null) {
             classes.remove(event.getOldName());
             classes.add(event.getBClass().getName());
         }
 
-        log("CLASS RENAMED: " + event.getOldName()
-            + " -> " + event.getBClass().getName());
+        log("CLASS RENAMED: " + event.getOldName() + " -> " + event.getBClass().getName());
+        record(EventType.CLASS_RENAMED, event.getBClass().getName(), Map.of("oldName", event.getOldName(), "newName", event.getBClass().getName()));
+
     }
 
     @Override
     public void classRemoved(ClassEvent event) {
         String name = event.getBClass().getName();
         String key = packageKey(event.getPackage());
-        Set<String> classes = knownClasses.get(key);
 
         if (key == null) {
             return;
         }
+
+        Set<String> classes = knownClasses.get(key);
 
         if (classes != null) {
             classes.remove(name);
         }
 
         log("CLASS DELETED: " + name);
+        record(EventType.CLASS_DELETED, name, Map.of());
     }
 
 
@@ -197,4 +274,20 @@ public class BlueJTelemetryExtension extends Extension implements PackageListene
     public String getDescription() {
         return "Collects telemetry from BlueJ coding sessions.";
     }
+    
+    private void record(EventType type, String className, Map<String, String> details) {
+
+        TelemetryEvent event = new TelemetryEvent(
+            type,
+            LocalDateTime.now(),
+            currentProjectName,
+            className,
+            details
+        );
+
+        recorder.recordEvent(event);
+
+        log("RECORDED: " + type);
+    }
+
 }
