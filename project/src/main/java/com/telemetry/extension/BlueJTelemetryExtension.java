@@ -7,17 +7,20 @@ import bluej.extensions2.ExtensionException;
 import bluej.extensions2.event.PackageEvent;
 import bluej.extensions2.event.PackageListener;
 import bluej.extensions2.event.CompileEvent;
+import bluej.extensions2.event.ClassEvent;
+import bluej.extensions2.event.ClassListener;
 import bluej.extensions2.event.CompileListener;
 
 import java.time.LocalDateTime;
 
 public class BlueJTelemetryExtension extends Extension
-        implements PackageListener, CompileListener {
+        implements PackageListener, CompileListener, ClassListener {
 
     @Override
     public void startup(BlueJ bluej) {
         bluej.addPackageListener(this);
         bluej.addCompileListener(this);
+        bluej.addClassListener(this);
 
         System.out.println("BlueJ Telemetry started!");
     }
@@ -77,6 +80,28 @@ public class BlueJTelemetryExtension extends Extension
             System.out.println("Message: " + event.getErrorMessage());
         }
     }
+
+    
+    @Override
+    public void classStateChanged(ClassEvent event) {
+        String className = event.getBClass().getName();
+
+        if (!event.isClassCompiled() && !event.hasError()) {
+            log("CLASS MODIFIED: " + className);
+        }
+    }
+
+    @Override
+    public void classNameChanged(ClassEvent event) {
+        log("CLASS RENAMED: " + event.getOldName()
+            + " -> " + event.getBClass().getName());
+    }
+
+    @Override
+    public void classRemoved(ClassEvent event) {
+        log("CLASS DELETED: " + event.getBClass().getName());
+    }
+
 
     private void log(String message) {
         System.out.println(LocalDateTime.now() + " | " + message);
