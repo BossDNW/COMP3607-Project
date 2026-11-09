@@ -10,11 +10,28 @@ import bluej.extensions2.event.CompileEvent;
 import bluej.extensions2.event.ClassEvent;
 import bluej.extensions2.event.ClassListener;
 import bluej.extensions2.event.CompileListener;
+import bluej.extensions2.BClass;
+import bluej.extensions2.ProjectNotOpenException;
+import bluej.extensions2.PackageNotFoundException;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import java.time.LocalDateTime;
 
-public class BlueJTelemetryExtension extends Extension
-        implements PackageListener, CompileListener, ClassListener {
+public class BlueJTelemetryExtension extends Extension implements PackageListener, CompileListener, ClassListener {
+    
+    private final Map<String, Set<String>> knownClasses = new ConcurrentHashMap<>();
+
+    private String packageKey(bluej.extensions2.BPackage pkg) {
+        try {
+            return pkg.getDir().getAbsolutePath();
+        } catch (ProjectNotOpenException | PackageNotFoundException e) {
+            // BlueJ may send class events before a project finishes opening.
+            return null;
+        }
+    }
+
 
     @Override
     public void startup(BlueJ bluej) {
@@ -25,18 +42,27 @@ public class BlueJTelemetryExtension extends Extension
         System.out.println("BlueJ Telemetry started!");
     }
 
+    
     @Override
     public void packageOpened(PackageEvent event) {
         try {
-            String name = event.getPackage()
-                               .getProject()
-                               .getName();
+            String name = event.getPackage().getProject().getName();
+            String key = packageKey(event.getPackage());
 
-            System.out.println("PROJECT OPENED: " + name);
+            Set<String> classes = ConcurrentHashMap.newKeySet();
+
+            for (BClass bClass : event.getPackage().getClasses()) {
+                classes.add(bClass.getName());
+            }
+
+            knownClasses.put(key, classes);
+
+            log("PROJECT OPENED: " + name);
         } catch (ExtensionException e) {
-            System.out.println("Unable to identify project.");
+            log("Unable to identify project: " + e.getMessage());
         }
     }
+
 
     @Override
     public void packageClosing(PackageEvent event) {
@@ -82,25 +108,70 @@ public class BlueJTelemetryExtension extends Extension
     }
 
     
+    
+    
     @Override
     public void classStateChanged(ClassEvent event) {
-        String className = event.getBClass().getName();
+        String key = packageKey(event.getPackage());
+
+        if (key == null) {
+            return;
+        }
+
+        Set<String> classes = knownClasses.get(key);
+
+        if (classes == null) {
+            return;
+        }
+
+        String name = event.getBClass().getName();
+
+        if (classes.add(name)) {
+            log("CLASS CREATED: " + name);
+            return;
+        }
 
         if (!event.isClassCompiled() && !event.hasError()) {
-            log("CLASS MODIFIED: " + className);
+            log("CLASS MODIFIED: " + name);
         }
     }
 
+
     @Override
     public void classNameChanged(ClassEvent event) {
+        String key = packageKey(event.getPackage());
+        Set<String> classes = knownClasses.get(key);
+
+        if (key == null) {
+            return;
+        }
+
+        if (classes != null) {
+            classes.remove(event.getOldName());
+            classes.add(event.getBClass().getName());
+        }
+
         log("CLASS RENAMED: " + event.getOldName()
             + " -> " + event.getBClass().getName());
     }
 
     @Override
     public void classRemoved(ClassEvent event) {
-        log("CLASS DELETED: " + event.getBClass().getName());
+        String name = event.getBClass().getName();
+        String key = packageKey(event.getPackage());
+        Set<String> classes = knownClasses.get(key);
+
+        if (key == null) {
+            return;
+        }
+
+        if (classes != null) {
+            classes.remove(name);
+        }
+
+        log("CLASS DELETED: " + name);
     }
+
 
 
     private void log(String message) {
