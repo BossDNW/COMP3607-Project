@@ -7,6 +7,7 @@ import com.google.gson.JsonObject;
 import com.telemetry.analytics.TelemetryAnalyzer;
 import com.telemetry.events.EventType;
 import com.telemetry.events.TelemetryEvent;
+import com.telemetry.analytics.ActivityTimeAnalyzer;
 import com.telemetry.session.SessionManager;
 
 import java.io.IOException;
@@ -27,6 +28,9 @@ public class JsonExporter {
         List<TelemetryEvent> events = session.getEvents();
         TelemetryAnalyzer analyzer = new TelemetryAnalyzer(events);
 
+        ActivityTimeAnalyzer activityAnalyzer = new ActivityTimeAnalyzer(events);
+
+
         JsonObject report = new JsonObject();
 
         // Session metadata
@@ -37,6 +41,28 @@ public class JsonExporter {
                 String.valueOf(session.getSessionEnd()));
         report.addProperty("session_duration_seconds",
                 session.getSessionDuration().toSeconds());
+        
+        report.addProperty(
+                "active_time_seconds",
+                activityAnalyzer.getActiveTimeSeconds(
+                        session.getSessionStart(),
+                        session.getSessionEnd()
+                )
+        );
+
+        report.addProperty(
+                "idle_time_seconds",
+                activityAnalyzer.getIdleTimeSeconds(
+                        session.getSessionStart(),
+                        session.getSessionEnd()
+                )
+        );
+
+        report.addProperty(
+                "activity_measurement",
+                "Estimated from recorded events using a 180-second threshold"
+        );
+
 
         // Compilation statistics
         report.addProperty("total_compilations",

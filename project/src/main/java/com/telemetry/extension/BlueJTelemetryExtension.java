@@ -22,13 +22,19 @@ import com.telemetry.session.SessionManager;
 import com.telemetry.reports.PdfReportGenerator;
 import java.time.LocalDateTime;
 import com.telemetry.reports.PdfReportGenerator;
+import bluej.extensions2.event.InvocationFinishedEvent;
+import bluej.extensions2.event.InvocationFinishedListener;
 
 import com.telemetry.reports.JsonExporter;
 import java.nio.file.Path;
 import java.io.IOException;
 import java.time.format.DateTimeFormatter;
 
-public class BlueJTelemetryExtension extends Extension implements PackageListener, CompileListener, ClassListener {
+
+public class BlueJTelemetryExtension extends Extension
+        implements PackageListener, CompileListener,
+                   ClassListener, InvocationFinishedListener {
+
     
     private final Map<String, Set<String>> knownClasses = new ConcurrentHashMap<>();
     private final SessionManager sessionManager = new SessionManager();
@@ -52,6 +58,7 @@ public class BlueJTelemetryExtension extends Extension implements PackageListene
         bluej.addPackageListener(this);
         bluej.addCompileListener(this);
         bluej.addClassListener(this);
+        bluej.addInvocationFinishedListener(this);
 
         System.out.println("BlueJ Telemetry started!");
     }
@@ -192,6 +199,37 @@ public class BlueJTelemetryExtension extends Extension implements PackageListene
     }
 
     
+    @Override
+    public void invocationFinished(InvocationFinishedEvent event) {
+
+        if (!sessionManager.isActive()) {
+            return;
+        }
+
+        String className = event.getClassName();
+        String methodName = event.getMethodName();
+
+        Map<String, String> details = Map.of(
+                "method", methodName == null
+                        ? "<constructor>" : methodName,
+                "status", event.getEventType().name()
+        );
+
+        record(EventType.PROGRAM_EXECUTED, className, details);
+
+        log("PROGRAM EXECUTED: " + className
+                + " | " + details.get("method")
+                + " | " + event.getEventType());
+
+        if (event.getEventType()
+                == InvocationFinishedEvent.EventType.EXCEPTION_EXIT) {
+
+            record(EventType.RUNTIME_ERROR, className, details);
+
+            log("RUNTIME EXCEPTION DETECTED: " + className);
+        }
+    }
+
     
     
     @Override

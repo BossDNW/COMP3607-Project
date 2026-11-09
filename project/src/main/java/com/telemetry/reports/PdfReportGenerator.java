@@ -1,8 +1,8 @@
-
 package com.telemetry.reports;
 
 import com.telemetry.analytics.TelemetryAnalyzer;
 import com.telemetry.events.EventType;
+import com.telemetry.analytics.ActivityTimeAnalyzer;
 import com.telemetry.events.TelemetryEvent;
 import com.telemetry.session.SessionManager;
 
@@ -37,6 +37,7 @@ public class PdfReportGenerator {
 
         List<TelemetryEvent> events = session.getEvents();
         TelemetryAnalyzer analyzer = new TelemetryAnalyzer(events);
+        ActivityTimeAnalyzer activityAnalyzer = new ActivityTimeAnalyzer(events);
 
         Path parent = output.toAbsolutePath().getParent();
 
@@ -120,8 +121,19 @@ public class PdfReportGenerator {
                 }
 
                 section(cs, "Activity Time", 235);
-                text(cs, "Active time: Not yet measured", 50, 210);
-                text(cs, "Idle time: Not yet measured", 50, 190);
+                
+                text(cs, "Estimated active time: " +
+                        activityAnalyzer.getActiveTimeSeconds(
+                                session.getSessionStart(),
+                                session.getSessionEnd()
+                        ) + " seconds", 50, 210);
+
+                text(cs, "Estimated idle time: " +
+                        activityAnalyzer.getIdleTimeSeconds(
+                                session.getSessionStart(),
+                                session.getSessionEnd()
+                        ) + " seconds", 50, 190);
+
 
                 footer(cs, "Page 1 of 2");
             }
