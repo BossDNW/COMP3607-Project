@@ -1,4 +1,4 @@
-classpath:C:\Users\dmari\Documents\GitHub\COMP3607-Project\project\target\classes	8:7c81fc16f724c206b9897b44bd43bc87a5e76079e3d5480ffc3997a2853ff827
+classpath:C:\Users\dmari\Documents\GitHub\COMP3607-Project\project\target\classes	9:c10db94626131457d71761388301992290790600ddad6ae7b2c187ff03debd21
 classpath:C:\Program Files\BlueJ\lib\bluej.jar	3432698:1788556730000
 classpath:C:\Users\dmari\.m2\repository\com\google\code\gson\gson\2.11.0\gson-2.11.0.jar	298435:1794245328462
 classpath:C:\Users\dmari\.m2\repository\com\google\errorprone\error_prone_annotations\2.27.0\error_prone_annotations-2.27.0.jar	19370:1794245329327
@@ -10,3 +10,7 @@ classpath:C:\Users\dmari\.m2\repository\org\apiguardian\apiguardian-api\1.1.2\ap
 classpath:C:\Users\dmari\.m2\repository\org\junit\jupiter\junit-jupiter-params\5.11.4\junit-jupiter-params-5.11.4.jar	591594:1793645452098
 classpath:C:\Users\dmari\.m2\repository\org\junit\jupiter\junit-jupiter-engine\5.11.4\junit-jupiter-engine-5.11.4.jar	260117:1793645452082
 classpath:C:\Users\dmari\.m2\repository\org\junit\platform\junit-platform-engine\1.11.4\junit-platform-engine-1.11.4.jar	246800:1793645452060
+classpath:C:\Users\dmari\.m2\repository\org\apache\pdfbox\pdfbox\3.0.8\pdfbox-3.0.8.jar	2070583:1794262148318
+classpath:C:\Users\dmari\.m2\repository\org\apache\pdfbox\pdfbox-io\3.0.8\pdfbox-io-3.0.8.jar	51906:1794262148631
+classpath:C:\Users\dmari\.m2\repository\org\apache\pdfbox\fontbox\3.0.8\fontbox-3.0.8.jar	1647000:1794262148857
+classpath:C:\Users\dmari\.m2\repository\commons-logging\commons-logging\1.4.0\commons-logging-1.4.0.jar	75828:1794262148606

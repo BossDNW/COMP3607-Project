@@ -19,7 +19,10 @@ import com.telemetry.events.EventType;
 import com.telemetry.events.TelemetryEvent;
 import com.telemetry.events.TelemetryRecorder;
 import com.telemetry.session.SessionManager;
+import com.telemetry.reports.PdfReportGenerator;
 import java.time.LocalDateTime;
+import com.telemetry.reports.PdfReportGenerator;
+
 import com.telemetry.reports.JsonExporter;
 import java.nio.file.Path;
 import java.io.IOException;
@@ -32,6 +35,7 @@ public class BlueJTelemetryExtension extends Extension implements PackageListene
     private final TelemetryRecorder recorder = sessionManager;
     private String currentProjectName;
     private final JsonExporter jsonExporter = new JsonExporter();
+    private final PdfReportGenerator pdfGenerator = new PdfReportGenerator();
 
     private String packageKey(bluej.extensions2.BPackage pkg) {
         try {
@@ -118,6 +122,16 @@ public class BlueJTelemetryExtension extends Extension implements PackageListene
                 jsonExporter.export(sessionManager, output);
 
                 log("JSON EXPORTED: " + output);
+
+                Path pdfOutput = output.resolveSibling(
+                        output.getFileName().toString()
+                                .replace(".json", ".pdf")
+                );
+
+                pdfGenerator.generate(sessionManager, pdfOutput);
+
+                log("PDF EXPORTED: " + pdfOutput);
+
 
             } catch (IOException e) {
                 log("JSON EXPORT FAILED: " + e.getMessage());

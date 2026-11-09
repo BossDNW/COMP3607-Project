@@ -1,3 +1,7 @@
 classpath:C:\Program Files\BlueJ\lib\bluej.jar	3432698:1788556730000
 classpath:C:\Users\dmari\.m2\repository\com\google\code\gson\gson\2.11.0\gson-2.11.0.jar	298435:1794245328462
 classpath:C:\Users\dmari\.m2\repository\com\google\errorprone\error_prone_annotations\2.27.0\error_prone_annotations-2.27.0.jar	19370:1794245329327
+classpath:C:\Users\dmari\.m2\repository\org\apache\pdfbox\pdfbox\3.0.8\pdfbox-3.0.8.jar	2070583:1794262148318
+classpath:C:\Users\dmari\.m2\repository\org\apache\pdfbox\pdfbox-io\3.0.8\pdfbox-io-3.0.8.jar	51906:1794262148631
+classpath:C:\Users\dmari\.m2\repository\org\apache\pdfbox\fontbox\3.0.8\fontbox-3.0.8.jar	1647000:1794262148857
+classpath:C:\Users\dmari\.m2\repository\commons-logging\commons-logging\1.4.0\commons-logging-1.4.0.jar	75828:1794262148606

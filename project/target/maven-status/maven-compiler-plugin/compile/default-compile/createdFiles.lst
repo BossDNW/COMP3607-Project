@@ -3,6 +3,7 @@ com\telemetry\events\TelemetryRecorder.class
 com\telemetry\Main.class
 com\telemetry\session\SessionManager.class
 com\telemetry\reports\JsonExporter.class
+com\telemetry\reports\PdfReportGenerator.class
 com\telemetry\extension\BlueJTelemetryExtension.class
 com\telemetry\events\EventType.class
 com\telemetry\events\TelemetryEvent.class
