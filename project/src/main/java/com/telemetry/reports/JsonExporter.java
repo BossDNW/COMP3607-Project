@@ -17,13 +17,14 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
-public class JsonExporter {
-    private final Gson gson = new GsonBuilder()
-            .setPrettyPrinting()
-            .create();
+public class JsonExporter implements ReportExporter {
+        private final Gson gson = new GsonBuilder()
+                .setPrettyPrinting()
+                .create();
 
-    public void export(SessionManager session, Path output)
-            throws IOException {
+        @Override
+        public void export(SessionManager session, Path output)
+                throws IOException {
 
         List<TelemetryEvent> events = session.getEvents();
         TelemetryAnalyzer analyzer = new TelemetryAnalyzer(events);
@@ -41,7 +42,7 @@ public class JsonExporter {
                 String.valueOf(session.getSessionEnd()));
         report.addProperty("session_duration_seconds",
                 session.getSessionDuration().toSeconds());
-        
+
         report.addProperty(
                 "active_time_seconds",
                 activityAnalyzer.getActiveTimeSeconds(
@@ -77,32 +78,32 @@ public class JsonExporter {
         report.addProperty("compilation_errors",
                 count(events, EventType.COMPILATION_ERROR));
 
-        
+
         report.addProperty(
-            "compilation_success_rate",
-            analyzer.getCompilationSuccessRate()
+                "compilation_success_rate",
+                analyzer.getCompilationSuccessRate()
         );
 
         report.addProperty(
-            "average_compilation_interval_seconds",
-            analyzer.getAverageCompilationInterval()
+                "average_compilation_interval_seconds",
+                analyzer.getAverageCompilationInterval()
         );
 
         report.addProperty(
-            "classes_created",
-            analyzer.getClassesCreated()
+                "classes_created",
+                analyzer.getClassesCreated()
         );
 
         report.addProperty(
-            "classes_deleted",
-            analyzer.getClassesDeleted()
+                "classes_deleted",
+                analyzer.getClassesDeleted()
         );
 
         // Individual intervals between compilations
         JsonArray intervals = new JsonArray();
 
         for (Long interval : analyzer.getCompilationIntervals()) {
-            intervals.add(interval);
+                intervals.add(interval);
         }
 
         report.add("compilation_intervals_seconds", intervals);
@@ -113,10 +114,10 @@ public class JsonExporter {
         for (Map.Entry<String, Integer> entry
                 : analyzer.getErrorFrequencies().entrySet()) {
 
-            errorFrequencies.addProperty(
+                errorFrequencies.addProperty(
                 entry.getKey(),
                 entry.getValue()
-            );
+                );
         }
 
         report.add("error_frequencies", errorFrequencies);
@@ -126,30 +127,30 @@ public class JsonExporter {
         JsonArray eventArray = new JsonArray();
 
         for (TelemetryEvent event : events) {
-            JsonObject item = new JsonObject();
+                JsonObject item = new JsonObject();
 
-            item.addProperty("type", event.getType().name());
-            item.addProperty("timestamp",
-                    event.getTimestamp().toString());
+                item.addProperty("type", event.getType().name());
+                item.addProperty("timestamp",
+                        event.getTimestamp().toString());
 
-            item.addProperty("project_name",
-                    event.getProjectName());
+                item.addProperty("project_name",
+                        event.getProjectName());
 
-            item.addProperty("class_name",
-                    event.getClassName());
+                item.addProperty("class_name",
+                        event.getClassName());
 
-            JsonObject details = new JsonObject();
+                JsonObject details = new JsonObject();
 
-            for (Map.Entry<String, String> entry
-                    : event.getDetails().entrySet()) {
+                for (Map.Entry<String, String> entry
+                        : event.getDetails().entrySet()) {
                 details.addProperty(
                         entry.getKey(),
                         entry.getValue()
                 );
-            }
+                }
 
-            item.add("details", details);
-            eventArray.add(item);
+                item.add("details", details);
+                eventArray.add(item);
         }
 
         report.add("events", eventArray);
@@ -157,7 +158,7 @@ public class JsonExporter {
         Path parent = output.toAbsolutePath().getParent();
 
         if (parent != null) {
-            Files.createDirectories(parent);
+                Files.createDirectories(parent);
         }
 
         Files.writeString(
@@ -165,15 +166,15 @@ public class JsonExporter {
                 gson.toJson(report),
                 StandardCharsets.UTF_8
         );
-    }
+        }
 
-    private long count(List<TelemetryEvent> events,
-                       EventType type) {
+        private long count(List<TelemetryEvent> events,
+                        EventType type) {
 
         return events.stream()
                 .filter(event -> event.getType() == type)
                 .count();
-    }
+        }
 
-    
+
 }

@@ -1,0 +1,427 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BlueJTelemetryExtension.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">project</a> &gt; <a href="index.source.html" class="el_package">com.telemetry.extension</a> &gt; <span class="el_source">BlueJTelemetryExtension.java</span></div><h1>BlueJTelemetryExtension.java</h1><pre class="source lang-java linenums">
+package com.telemetry.extension;
+
+import bluej.extensions2.BlueJ;
+import bluej.extensions2.Extension;
+import bluej.extensions2.ExtensionException;
+import bluej.extensions2.BClass;
+import bluej.extensions2.ProjectNotOpenException;
+import bluej.extensions2.PackageNotFoundException;
+
+import bluej.extensions2.event.PackageEvent;
+import bluej.extensions2.event.PackageListener;
+import bluej.extensions2.event.CompileEvent;
+import bluej.extensions2.event.CompileListener;
+import bluej.extensions2.event.ClassEvent;
+import bluej.extensions2.event.ClassListener;
+import bluej.extensions2.event.InvocationFinishedEvent;
+import bluej.extensions2.event.InvocationFinishedListener;
+
+import com.telemetry.events.EventType;
+import com.telemetry.events.TelemetryEvent;
+import com.telemetry.events.TelemetryRecorder;
+import com.telemetry.events.TelemetryEventBus;
+
+import com.telemetry.session.SessionManager;
+
+import com.telemetry.reports.ReportExporterCreator;
+import com.telemetry.reports.JsonExporterCreator;
+import com.telemetry.reports.PdfExporterCreator;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
+public class BlueJTelemetryExtension extends Extension
+        implements PackageListener, CompileListener,
+                   ClassListener, InvocationFinishedListener {
+
+<span class="nc" id="L43">    private final Map&lt;String, Set&lt;String&gt;&gt; knownClasses =</span>
+            new ConcurrentHashMap&lt;&gt;();
+
+<span class="nc" id="L46">    private final SessionManager sessionManager =</span>
+            new SessionManager();
+
+<span class="nc" id="L49">    private final TelemetryRecorder recorder = sessionManager;</span>
+
+<span class="nc" id="L51">    private final TelemetryEventBus eventBus =</span>
+            new TelemetryEventBus();
+
+    private String currentProjectName;
+
+    // Factory Method: creators determine which exporter to build
+<span class="nc" id="L57">    private final ReportExporterCreator jsonCreator =</span>
+            new JsonExporterCreator();
+
+<span class="nc" id="L60">    private final ReportExporterCreator pdfCreator =</span>
+            new PdfExporterCreator();
+
+<span class="nc" id="L63">    public BlueJTelemetryExtension() {</span>
+        // Observer: SessionManager subscribes to telemetry events
+<span class="nc" id="L65">        eventBus.subscribe(recorder);</span>
+<span class="nc" id="L66">    }</span>
+
+    private String packageKey(bluej.extensions2.BPackage pkg) {
+        try {
+<span class="nc" id="L70">            return pkg.getDir().getAbsolutePath();</span>
+<span class="nc" id="L71">        } catch (ProjectNotOpenException | PackageNotFoundException e) {</span>
+<span class="nc" id="L72">            return null;</span>
+        }
+    }
+
+    @Override
+    public void startup(BlueJ bluej) {
+<span class="nc" id="L78">        bluej.addPackageListener(this);</span>
+<span class="nc" id="L79">        bluej.addCompileListener(this);</span>
+<span class="nc" id="L80">        bluej.addClassListener(this);</span>
+<span class="nc" id="L81">        bluej.addInvocationFinishedListener(this);</span>
+
+<span class="nc" id="L83">        System.out.println(&quot;BlueJ Telemetry started!&quot;);</span>
+<span class="nc" id="L84">    }</span>
+
+    @Override
+    public void packageOpened(PackageEvent event) {
+        try {
+<span class="nc" id="L89">            String name = event.getPackage().getProject().getName();</span>
+<span class="nc" id="L90">            String key = packageKey(event.getPackage());</span>
+
+<span class="nc bnc" id="L92" title="All 2 branches missed.">            if (key == null) {</span>
+<span class="nc" id="L93">                return;</span>
+            }
+
+<span class="nc" id="L96">            Set&lt;String&gt; classes = ConcurrentHashMap.newKeySet();</span>
+
+<span class="nc bnc" id="L98" title="All 2 branches missed.">            for (BClass bClass : event.getPackage().getClasses()) {</span>
+<span class="nc" id="L99">                classes.add(bClass.getName());</span>
+            }
+
+<span class="nc" id="L102">            knownClasses.put(key, classes);</span>
+
+<span class="nc bnc" id="L104" title="All 2 branches missed.">            if (!sessionManager.isActive()) {</span>
+<span class="nc" id="L105">                currentProjectName = name;</span>
+<span class="nc" id="L106">                sessionManager.startSession();</span>
+
+<span class="nc" id="L108">                record(EventType.PROJECT_OPENED, null, Map.of());</span>
+            }
+
+<span class="nc" id="L111">            log(&quot;PROJECT OPENED: &quot; + name);</span>
+
+<span class="nc" id="L113">        } catch (ExtensionException e) {</span>
+<span class="nc" id="L114">            log(&quot;Unable to identify project: &quot; + e.getMessage());</span>
+<span class="nc" id="L115">        }</span>
+<span class="nc" id="L116">    }</span>
+
+    @Override
+    public void packageClosing(PackageEvent event) {
+
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        if (sessionManager.isActive()) {</span>
+
+<span class="nc" id="L123">            record(EventType.PROJECT_CLOSED, null, Map.of());</span>
+<span class="nc" id="L124">            sessionManager.endSession();</span>
+
+<span class="nc" id="L126">            log(&quot;SESSION ENDED&quot;);</span>
+<span class="nc" id="L127">            log(&quot;TOTAL EVENTS: &quot;</span>
+<span class="nc" id="L128">                    + sessionManager.getEvents().size());</span>
+
+            try {
+<span class="nc" id="L131">                String timestamp = LocalDateTime.now().format(</span>
+<span class="nc" id="L132">                        DateTimeFormatter.ofPattern(</span>
+                                &quot;yyyyMMdd-HHmmss-SSS&quot;)
+                );
+
+<span class="nc" id="L136">                Path output = Path.of(</span>
+<span class="nc" id="L137">                        System.getProperty(&quot;user.home&quot;),</span>
+                        &quot;bluej&quot;,
+                        &quot;telemetry-reports&quot;,
+                        &quot;session-&quot; + timestamp + &quot;.json&quot;
+                );
+
+                // Factory Method + Strategy: JSON export
+<span class="nc" id="L144">                jsonCreator.exportReport(sessionManager, output);</span>
+
+<span class="nc" id="L146">                log(&quot;JSON EXPORTED: &quot; + output);</span>
+
+<span class="nc" id="L148">                Path pdfOutput = output.resolveSibling(</span>
+<span class="nc" id="L149">                        output.getFileName().toString()</span>
+<span class="nc" id="L150">                                .replace(&quot;.json&quot;, &quot;.pdf&quot;)</span>
+                );
+
+                // Factory Method + Strategy: PDF export
+<span class="nc" id="L154">                pdfCreator.exportReport(sessionManager, pdfOutput);</span>
+
+<span class="nc" id="L156">                log(&quot;PDF EXPORTED: &quot; + pdfOutput);</span>
+
+<span class="nc" id="L158">            } catch (IOException e) {</span>
+<span class="nc" id="L159">                log(&quot;REPORT EXPORT FAILED: &quot; + e.getMessage());</span>
+<span class="nc" id="L160">            }</span>
+        }
+
+<span class="nc" id="L163">        knownClasses.clear();</span>
+<span class="nc" id="L164">    }</span>
+
+    @Override
+    public void compileStarted(CompileEvent event) {
+<span class="nc bnc" id="L168" title="All 2 branches missed.">        if (event.isUserGeneratedCompilation()) {</span>
+<span class="nc" id="L169">            log(&quot;COMPILATION STARTED&quot;);</span>
+
+<span class="nc" id="L171">            record(</span>
+                    EventType.COMPILATION_STARTED,
+                    null,
+<span class="nc" id="L174">                    Map.of()</span>
+            );
+        }
+<span class="nc" id="L177">    }</span>
+
+    @Override
+    public void compileSucceeded(CompileEvent event) {
+<span class="nc bnc" id="L181" title="All 2 branches missed.">        if (event.isUserGeneratedCompilation()) {</span>
+<span class="nc" id="L182">            log(&quot;COMPILATION SUCCESS&quot;);</span>
+
+<span class="nc" id="L184">            record(</span>
+                    EventType.COMPILATION_SUCCESS,
+                    null,
+<span class="nc" id="L187">                    Map.of()</span>
+            );
+        }
+<span class="nc" id="L190">    }</span>
+
+    @Override
+    public void compileFailed(CompileEvent event) {
+<span class="nc bnc" id="L194" title="All 2 branches missed.">        if (event.isUserGeneratedCompilation()) {</span>
+<span class="nc" id="L195">            log(&quot;COMPILATION FAILED&quot;);</span>
+
+<span class="nc" id="L197">            record(</span>
+                    EventType.COMPILATION_FAILURE,
+                    null,
+<span class="nc" id="L200">                    Map.of()</span>
+            );
+        }
+<span class="nc" id="L203">    }</span>
+
+    @Override
+    public void compileError(CompileEvent event) {
+<span class="nc bnc" id="L207" title="All 2 branches missed.">        if (event.isUserGeneratedCompilation()) {</span>
+
+<span class="nc" id="L209">            log(&quot;COMPILATION ERROR&quot;);</span>
+
+<span class="nc" id="L211">            System.out.println(</span>
+<span class="nc" id="L212">                    &quot;Line: &quot; + event.getErrorLineNumber());</span>
+
+<span class="nc" id="L214">            System.out.println(</span>
+<span class="nc" id="L215">                    &quot;Message: &quot; + event.getErrorMessage());</span>
+
+<span class="nc" id="L217">            record(</span>
+                    EventType.COMPILATION_ERROR,
+                    null,
+<span class="nc" id="L220">                    Map.of(</span>
+                            &quot;line&quot;,
+<span class="nc" id="L222">                            String.valueOf(event.getErrorLineNumber()),</span>
+                            &quot;message&quot;,
+<span class="nc" id="L224">                            String.valueOf(event.getErrorMessage())</span>
+                    )
+            );
+        }
+<span class="nc" id="L228">    }</span>
+
+    @Override
+    public void compileWarning(CompileEvent event) {
+<span class="nc bnc" id="L232" title="All 2 branches missed.">        if (event.isUserGeneratedCompilation()) {</span>
+
+<span class="nc" id="L234">            log(&quot;COMPILATION WARNING&quot;);</span>
+
+<span class="nc" id="L236">            System.out.println(</span>
+<span class="nc" id="L237">                    &quot;Message: &quot; + event.getErrorMessage());</span>
+
+<span class="nc" id="L239">            record(</span>
+                    EventType.COMPILATION_WARNING,
+                    null,
+<span class="nc" id="L242">                    Map.of(</span>
+                            &quot;line&quot;,
+<span class="nc" id="L244">                            String.valueOf(event.getErrorLineNumber()),</span>
+                            &quot;message&quot;,
+<span class="nc" id="L246">                            String.valueOf(event.getErrorMessage())</span>
+                    )
+            );
+        }
+<span class="nc" id="L250">    }</span>
+
+    @Override
+    public void invocationFinished(InvocationFinishedEvent event) {
+
+<span class="nc bnc" id="L255" title="All 2 branches missed.">        if (!sessionManager.isActive()) {</span>
+<span class="nc" id="L256">            return;</span>
+        }
+
+<span class="nc" id="L259">        String className = event.getClassName();</span>
+<span class="nc" id="L260">        String methodName = event.getMethodName();</span>
+
+<span class="nc" id="L262">        Map&lt;String, String&gt; details = Map.of(</span>
+                &quot;method&quot;,
+<span class="nc bnc" id="L264" title="All 2 branches missed.">                methodName == null ? &quot;&lt;constructor&gt;&quot; : methodName,</span>
+                &quot;status&quot;,
+<span class="nc" id="L266">                event.getEventType().name()</span>
+        );
+
+<span class="nc" id="L269">        record(EventType.PROGRAM_EXECUTED, className, details);</span>
+
+<span class="nc" id="L271">        log(&quot;PROGRAM EXECUTED: &quot;</span>
+                + className
+                + &quot; | &quot;
+<span class="nc" id="L274">                + details.get(&quot;method&quot;)</span>
+                + &quot; | &quot;
+<span class="nc" id="L276">                + event.getEventType());</span>
+
+<span class="nc bnc" id="L278" title="All 2 branches missed.">        if (event.getEventType()</span>
+                == InvocationFinishedEvent.EventType.EXCEPTION_EXIT) {
+
+<span class="nc" id="L281">            record(EventType.RUNTIME_ERROR, className, details);</span>
+
+<span class="nc" id="L283">            log(&quot;RUNTIME EXCEPTION DETECTED: &quot; + className);</span>
+        }
+<span class="nc" id="L285">    }</span>
+
+    @Override
+    public void classStateChanged(ClassEvent event) {
+
+<span class="nc" id="L290">        String key = packageKey(event.getPackage());</span>
+
+<span class="nc bnc" id="L292" title="All 2 branches missed.">        if (key == null) {</span>
+<span class="nc" id="L293">            return;</span>
+        }
+
+<span class="nc" id="L296">        Set&lt;String&gt; classes = knownClasses.get(key);</span>
+
+<span class="nc bnc" id="L298" title="All 2 branches missed.">        if (classes == null) {</span>
+<span class="nc" id="L299">            return;</span>
+        }
+
+<span class="nc" id="L302">        String name = event.getBClass().getName();</span>
+
+<span class="nc bnc" id="L304" title="All 2 branches missed.">        if (classes.add(name)) {</span>
+<span class="nc" id="L305">            log(&quot;CLASS CREATED: &quot; + name);</span>
+
+<span class="nc" id="L307">            record(</span>
+                    EventType.CLASS_CREATED,
+                    name,
+<span class="nc" id="L310">                    Map.of()</span>
+            );
+
+<span class="nc" id="L313">            return;</span>
+        }
+
+<span class="nc bnc" id="L316" title="All 4 branches missed.">        if (!event.isClassCompiled() &amp;&amp; !event.hasError()) {</span>
+<span class="nc" id="L317">            log(&quot;CLASS MODIFIED: &quot; + name);</span>
+
+<span class="nc" id="L319">            record(</span>
+                    EventType.CLASS_MODIFIED,
+                    name,
+<span class="nc" id="L322">                    Map.of()</span>
+            );
+        }
+<span class="nc" id="L325">    }</span>
+
+    @Override
+    public void classNameChanged(ClassEvent event) {
+
+<span class="nc" id="L330">        String key = packageKey(event.getPackage());</span>
+
+<span class="nc bnc" id="L332" title="All 2 branches missed.">        if (key == null) {</span>
+<span class="nc" id="L333">            return;</span>
+        }
+
+<span class="nc" id="L336">        Set&lt;String&gt; classes = knownClasses.get(key);</span>
+
+<span class="nc bnc" id="L338" title="All 2 branches missed.">        if (classes != null) {</span>
+<span class="nc" id="L339">            classes.remove(event.getOldName());</span>
+<span class="nc" id="L340">            classes.add(event.getBClass().getName());</span>
+        }
+
+<span class="nc" id="L343">        log(&quot;CLASS RENAMED: &quot;</span>
+<span class="nc" id="L344">                + event.getOldName()</span>
+                + &quot; -&gt; &quot;
+<span class="nc" id="L346">                + event.getBClass().getName());</span>
+
+<span class="nc" id="L348">        record(</span>
+                EventType.CLASS_RENAMED,
+<span class="nc" id="L350">                event.getBClass().getName(),</span>
+<span class="nc" id="L351">                Map.of(</span>
+<span class="nc" id="L352">                        &quot;oldName&quot;, event.getOldName(),</span>
+<span class="nc" id="L353">                        &quot;newName&quot;, event.getBClass().getName()</span>
+                )
+        );
+<span class="nc" id="L356">    }</span>
+
+    @Override
+    public void classRemoved(ClassEvent event) {
+
+<span class="nc" id="L361">        String name = event.getBClass().getName();</span>
+<span class="nc" id="L362">        String key = packageKey(event.getPackage());</span>
+
+<span class="nc bnc" id="L364" title="All 2 branches missed.">        if (key == null) {</span>
+<span class="nc" id="L365">            return;</span>
+        }
+
+<span class="nc" id="L368">        Set&lt;String&gt; classes = knownClasses.get(key);</span>
+
+<span class="nc bnc" id="L370" title="All 2 branches missed.">        if (classes != null) {</span>
+<span class="nc" id="L371">            classes.remove(name);</span>
+        }
+
+<span class="nc" id="L374">        log(&quot;CLASS DELETED: &quot; + name);</span>
+
+<span class="nc" id="L376">        record(</span>
+                EventType.CLASS_DELETED,
+                name,
+<span class="nc" id="L379">                Map.of()</span>
+        );
+<span class="nc" id="L381">    }</span>
+
+    private void record(
+            EventType type,
+            String className,
+            Map&lt;String, String&gt; details) {
+
+<span class="nc" id="L388">        TelemetryEvent event = new TelemetryEvent(</span>
+                type,
+<span class="nc" id="L390">                LocalDateTime.now(),</span>
+                currentProjectName,
+                className,
+                details
+        );
+
+        // Observer: notify SessionManager through EventBus
+<span class="nc" id="L397">        eventBus.publish(event);</span>
+
+<span class="nc" id="L399">        log(&quot;RECORDED: &quot; + type);</span>
+<span class="nc" id="L400">    }</span>
+
+    private void log(String message) {
+<span class="nc" id="L403">        System.out.println(</span>
+<span class="nc" id="L404">                LocalDateTime.now() + &quot; | &quot; + message);</span>
+<span class="nc" id="L405">    }</span>
+
+    @Override
+    public boolean isCompatible() {
+<span class="nc bnc" id="L409" title="All 2 branches missed.">        return getExtensionsAPIVersionMajor() &gt;= 3;</span>
+    }
+
+    @Override
+    public String getName() {
+<span class="nc" id="L414">        return &quot;BlueJ Telemetry&quot;;</span>
+    }
+
+    @Override
+    public String getVersion() {
+<span class="nc" id="L419">        return &quot;1.0&quot;;</span>
+    }
+
+    @Override
+    public String getDescription() {
+<span class="nc" id="L424">        return &quot;Collects telemetry from BlueJ coding sessions.&quot;;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

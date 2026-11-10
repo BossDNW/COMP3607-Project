@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.telemetry.reports.PdfReportGeneratorTest
+-------------------------------------------------------------------------------
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.954 s -- in com.telemetry.reports.PdfReportGeneratorTest

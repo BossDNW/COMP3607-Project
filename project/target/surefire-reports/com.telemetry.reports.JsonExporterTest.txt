@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.telemetry.reports.JsonExporterTest
+-------------------------------------------------------------------------------
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.496 s -- in com.telemetry.reports.JsonExporterTest

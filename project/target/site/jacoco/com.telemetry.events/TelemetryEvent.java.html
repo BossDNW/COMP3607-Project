@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TelemetryEvent.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">project</a> &gt; <a href="index.source.html" class="el_package">com.telemetry.events</a> &gt; <span class="el_source">TelemetryEvent.java</span></div><h1>TelemetryEvent.java</h1><pre class="source lang-java linenums">package com.telemetry.events;
+
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
+public class TelemetryEvent {
+
+    private final EventType type;
+    private final LocalDateTime timestamp;
+    private final String projectName;
+    private final String className;
+    private final Map&lt;String, String&gt; details;
+
+    public TelemetryEvent(EventType type,
+                          LocalDateTime timestamp,
+                          String projectName,
+                          String className,
+<span class="fc" id="L20">                          Map&lt;String, String&gt; details) {</span>
+
+<span class="fc" id="L22">        this.type = type;</span>
+<span class="fc" id="L23">        this.timestamp = timestamp;</span>
+<span class="fc" id="L24">        this.projectName = projectName;</span>
+<span class="fc" id="L25">        this.className = className;</span>
+<span class="pc bpc" id="L26" title="1 of 2 branches missed.">        this.details = details == null</span>
+<span class="nc" id="L27">                ? new HashMap&lt;&gt;()</span>
+<span class="fc" id="L28">                : new HashMap&lt;&gt;(details);</span>
+<span class="fc" id="L29">    }</span>
+
+    public EventType getType() {
+<span class="fc" id="L32">        return type;</span>
+    }
+
+    public LocalDateTime getTimestamp() {
+<span class="fc" id="L36">        return timestamp;</span>
+    }
+
+    public String getProjectName() {
+<span class="fc" id="L40">        return projectName;</span>
+    }
+
+    public String getClassName() {
+<span class="fc" id="L44">        return className;</span>
+    }
+
+    public Map&lt;String, String&gt; getDetails() {
+<span class="fc" id="L48">        return Collections.unmodifiableMap(details);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
