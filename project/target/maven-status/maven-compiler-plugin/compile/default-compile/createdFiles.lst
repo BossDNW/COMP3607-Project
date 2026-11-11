@@ -3,12 +3,14 @@ com\telemetry\events\TelemetryRecorder.class
 com\telemetry\Main.class
 com\telemetry\analytics\ActivityTimeAnalyzer.class
 com\telemetry\events\TelemetryEventBus.class
+com\telemetry\extension\BlueJTelemetryExtension$1.class
 com\telemetry\reports\JsonExporter.class
 com\telemetry\reports\PdfReportGenerator.class
 com\telemetry\events\EventType.class
 com\telemetry\events\TelemetryEvent.class
 com\telemetry\reports\ReportExporterCreator.class
 com\telemetry\reports\PdfExporterCreator.class
+com\telemetry\reports\ReportService.class
 com\telemetry\reports\JsonExporterCreator.class
 com\telemetry\session\SessionManager.class
 com\telemetry\extension\BlueJTelemetryExtension.class

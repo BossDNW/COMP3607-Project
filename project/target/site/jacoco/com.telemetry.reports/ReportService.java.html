@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReportService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">project</a> &gt; <a href="index.source.html" class="el_package">com.telemetry.reports</a> &gt; <span class="el_source">ReportService.java</span></div><h1>ReportService.java</h1><pre class="source lang-java linenums">package com.telemetry.reports;
+
+import com.telemetry.session.SessionManager;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+<span class="fc" id="L13">public class ReportService {</span>
+
+<span class="fc" id="L15">    private final ScheduledExecutorService executor =</span>
+<span class="fc" id="L16">            Executors.newSingleThreadScheduledExecutor(r -&gt; {</span>
+<span class="nc" id="L17">                Thread thread = new Thread(r, &quot;telemetry-report-worker&quot;);</span>
+<span class="nc" id="L18">                thread.setDaemon(true);</span>
+<span class="nc" id="L19">                return thread;</span>
+            });
+
+<span class="fc" id="L22">    private final ReportExporterCreator jsonCreator =</span>
+            new JsonExporterCreator();
+
+<span class="fc" id="L25">    private final ReportExporterCreator pdfCreator =</span>
+            new PdfExporterCreator();
+
+<span class="fc" id="L28">    private final Path reportDirectory = Path.of(</span>
+<span class="fc" id="L29">            System.getProperty(&quot;user.home&quot;),</span>
+            &quot;bluej&quot;,
+            &quot;telemetry-reports&quot;
+    );
+
+    public void startAutomaticBackups(SessionManager session) {
+
+<span class="nc" id="L36">        executor.scheduleAtFixedRate(() -&gt; {</span>
+
+<span class="nc bnc" id="L38" title="All 2 branches missed.">            if (!session.isActive()) {</span>
+<span class="nc" id="L39">                return;</span>
+            }
+
+<span class="nc" id="L42">            SessionManager snapshot = session.snapshot();</span>
+
+            try {
+<span class="nc" id="L45">                Path output = reportDirectory.resolve(</span>
+                        &quot;autosave-current.json&quot;
+                );
+
+<span class="nc" id="L49">                jsonCreator.exportReport(snapshot, output);</span>
+
+<span class="nc" id="L51">                System.out.println(</span>
+                        &quot;TELEMETRY AUTOSAVE: &quot; + output
+                );
+
+<span class="nc" id="L55">            } catch (Exception e) {</span>
+<span class="nc" id="L56">                System.err.println(</span>
+                        &quot;TELEMETRY AUTOSAVE FAILED: &quot;
+<span class="nc" id="L58">                                + e.getMessage()</span>
+                );
+<span class="nc" id="L60">            }</span>
+
+<span class="nc" id="L62">        }, 60, 60, TimeUnit.SECONDS);</span>
+<span class="nc" id="L63">    }</span>
+
+    public void exportReports(SessionManager session) {
+
+        // Capture the session BEFORE scheduling the export.
+<span class="nc" id="L68">        SessionManager snapshot = session.snapshot();</span>
+
+<span class="nc" id="L70">        executor.execute(() -&gt; {</span>
+            try {
+<span class="nc" id="L72">                String timestamp = LocalDateTime.now().format(</span>
+<span class="nc" id="L73">                        DateTimeFormatter.ofPattern(</span>
+                                &quot;yyyyMMdd-HHmmss-SSS&quot;
+                        )
+                );
+
+<span class="nc" id="L78">                String filename = &quot;session-&quot; + timestamp;</span>
+
+<span class="nc" id="L80">                Path jsonOutput = reportDirectory.resolve(</span>
+                        filename + &quot;.json&quot;
+                );
+
+<span class="nc" id="L84">                Path pdfOutput = reportDirectory.resolve(</span>
+                        filename + &quot;.pdf&quot;
+                );
+
+<span class="nc" id="L88">                jsonCreator.exportReport(snapshot, jsonOutput);</span>
+<span class="nc" id="L89">                System.out.println(</span>
+                        &quot;JSON EXPORTED: &quot; + jsonOutput
+                );
+
+<span class="nc" id="L93">                pdfCreator.exportReport(snapshot, pdfOutput);</span>
+<span class="nc" id="L94">                System.out.println(</span>
+                        &quot;PDF EXPORTED: &quot; + pdfOutput
+                );
+
+<span class="nc" id="L98">            } catch (IOException e) {</span>
+<span class="nc" id="L99">                System.err.println(</span>
+<span class="nc" id="L100">                        &quot;REPORT EXPORT FAILED: &quot; + e.getMessage()</span>
+                );
+<span class="nc" id="L102">            }</span>
+<span class="nc" id="L103">        });</span>
+<span class="nc" id="L104">    }</span>
+
+    public void shutdown() {
+<span class="nc" id="L107">        executor.shutdown();</span>
+
+        try {
+<span class="nc bnc" id="L110" title="All 2 branches missed.">            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {</span>
+<span class="nc" id="L111">                System.err.println(</span>
+                        &quot;Report worker still finishing exports.&quot;
+                );
+            }
+<span class="nc" id="L115">        } catch (InterruptedException e) {</span>
+<span class="nc" id="L116">            Thread.currentThread().interrupt();</span>
+<span class="nc" id="L117">        }</span>
+<span class="nc" id="L118">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

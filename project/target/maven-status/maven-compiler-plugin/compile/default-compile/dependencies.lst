@@ -5,3 +5,9 @@ classpath:C:\Users\dmari\.m2\repository\org\apache\pdfbox\pdfbox\3.0.8\pdfbox-3.
 classpath:C:\Users\dmari\.m2\repository\org\apache\pdfbox\pdfbox-io\3.0.8\pdfbox-io-3.0.8.jar	51906:1794262148631
 classpath:C:\Users\dmari\.m2\repository\org\apache\pdfbox\fontbox\3.0.8\fontbox-3.0.8.jar	1647000:1794262148857
 classpath:C:\Users\dmari\.m2\repository\commons-logging\commons-logging\1.4.0\commons-logging-1.4.0.jar	75828:1794262148606
+classpath:C:\Users\dmari\.m2\repository\org\openjfx\javafx-controls\17.0.12\javafx-controls-17.0.12.jar	306:1794428085985
+classpath:C:\Users\dmari\.m2\repository\org\openjfx\javafx-controls\17.0.12\javafx-controls-17.0.12-win.jar	2551599:1794428087062
+classpath:C:\Users\dmari\.m2\repository\org\openjfx\javafx-graphics\17.0.12\javafx-graphics-17.0.12.jar	306:1794428086232
+classpath:C:\Users\dmari\.m2\repository\org\openjfx\javafx-graphics\17.0.12\javafx-graphics-17.0.12-win.jar	5890524:1794428088093
+classpath:C:\Users\dmari\.m2\repository\org\openjfx\javafx-base\17.0.12\javafx-base-17.0.12.jar	302:1794428086241
+classpath:C:\Users\dmari\.m2\repository\org\openjfx\javafx-base\17.0.12\javafx-base-17.0.12-win.jar	746012:1794428086670

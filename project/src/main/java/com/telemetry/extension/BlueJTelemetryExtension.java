@@ -1,4 +1,3 @@
-
 package com.telemetry.extension;
 
 import bluej.extensions2.BlueJ;
@@ -7,7 +6,7 @@ import bluej.extensions2.ExtensionException;
 import bluej.extensions2.BClass;
 import bluej.extensions2.ProjectNotOpenException;
 import bluej.extensions2.PackageNotFoundException;
-
+import com.telemetry.reports.ReportService;
 import bluej.extensions2.event.PackageEvent;
 import bluej.extensions2.event.PackageListener;
 import bluej.extensions2.event.CompileEvent;
@@ -16,7 +15,9 @@ import bluej.extensions2.event.ClassEvent;
 import bluej.extensions2.event.ClassListener;
 import bluej.extensions2.event.InvocationFinishedEvent;
 import bluej.extensions2.event.InvocationFinishedListener;
-
+import bluej.extensions2.MenuGenerator;
+import bluej.extensions2.BPackage;
+import javafx.scene.control.MenuItem;
 import com.telemetry.events.EventType;
 import com.telemetry.events.TelemetryEvent;
 import com.telemetry.events.TelemetryRecorder;
@@ -51,6 +52,8 @@ public class BlueJTelemetryExtension extends Extension
     private final TelemetryEventBus eventBus =
             new TelemetryEventBus();
 
+    private final ReportService reportService = new ReportService();
+
     private String currentProjectName;
 
     // Factory Method: creators determine which exporter to build
@@ -73,15 +76,57 @@ public class BlueJTelemetryExtension extends Extension
         }
     }
 
-    @Override
-    public void startup(BlueJ bluej) {
-        bluej.addPackageListener(this);
-        bluej.addCompileListener(this);
-        bluej.addClassListener(this);
-        bluej.addInvocationFinishedListener(this);
+    
+@Override
+public void startup(BlueJ bluej) {
 
-        System.out.println("BlueJ Telemetry started!");
-    }
+    bluej.addPackageListener(this);
+    bluej.addCompileListener(this);
+    bluej.addClassListener(this);
+    bluej.addInvocationFinishedListener(this);
+
+    // Save session backups automatically.
+    reportService.startAutomaticBackups(sessionManager);
+
+    // Manual export option in BlueJ's Tools menu.
+    bluej.setMenuGenerator(new MenuGenerator() {
+
+        @Override
+        public MenuItem getToolsMenuItem(BPackage pkg) {
+
+            MenuItem item = new MenuItem(
+                    "Export Telemetry Reports"
+            );
+
+            item.setDisable(!sessionManager.isActive());
+
+            item.setOnAction(e -> {
+
+                if (!sessionManager.isActive()) {
+                    log("No active session to export.");
+                    return;
+                }
+
+                reportService.exportReports(sessionManager);
+
+                log("MANUAL REPORT EXPORT REQUESTED");
+            });
+
+            return item;
+        }
+
+        @Override
+        public void notifyPostToolsMenu(
+                BPackage pkg,
+                MenuItem item) {
+
+            item.setDisable(!sessionManager.isActive());
+        }
+    });
+
+    System.out.println("BlueJ Telemetry started!");
+}
+
 
     @Override
     public void packageOpened(PackageEvent event) {
@@ -115,6 +160,7 @@ public class BlueJTelemetryExtension extends Extension
         }
     }
 
+    
     @Override
     public void packageClosing(PackageEvent event) {
 
@@ -127,41 +173,15 @@ public class BlueJTelemetryExtension extends Extension
             log("TOTAL EVENTS: "
                     + sessionManager.getEvents().size());
 
-            try {
-                String timestamp = LocalDateTime.now().format(
-                        DateTimeFormatter.ofPattern(
-                                "yyyyMMdd-HHmmss-SSS")
-                );
+            // Export JSON and PDF on the background worker.
+            reportService.exportReports(sessionManager);
 
-                Path output = Path.of(
-                        System.getProperty("user.home"),
-                        "bluej",
-                        "telemetry-reports",
-                        "session-" + timestamp + ".json"
-                );
-
-                // Factory Method + Strategy: JSON export
-                jsonCreator.exportReport(sessionManager, output);
-
-                log("JSON EXPORTED: " + output);
-
-                Path pdfOutput = output.resolveSibling(
-                        output.getFileName().toString()
-                                .replace(".json", ".pdf")
-                );
-
-                // Factory Method + Strategy: PDF export
-                pdfCreator.exportReport(sessionManager, pdfOutput);
-
-                log("PDF EXPORTED: " + pdfOutput);
-
-            } catch (IOException e) {
-                log("REPORT EXPORT FAILED: " + e.getMessage());
-            }
+            log("REPORT EXPORT REQUESTED");
         }
 
         knownClasses.clear();
     }
+
 
     @Override
     public void compileStarted(CompileEvent event) {
@@ -408,6 +428,21 @@ public class BlueJTelemetryExtension extends Extension
     public boolean isCompatible() {
         return getExtensionsAPIVersionMajor() >= 3;
     }
+
+
+    @Override
+    public void terminate() {
+
+        if (sessionManager.isActive()) {
+            record(EventType.PROJECT_CLOSED, null, Map.of());
+            sessionManager.endSession();
+
+            reportService.exportReports(sessionManager);
+        }
+
+        reportService.shutdown();
+    }
+
 
     @Override
     public String getName() {

@@ -69,4 +69,22 @@ public class SessionManager implements TelemetryRecorder {
     public synchronized boolean isActive() {
         return active;
     }
+
+
+public synchronized SessionManager snapshot() {
+
+    SessionManager copy = new SessionManager();
+
+    copy.events.addAll(this.events);
+    copy.sessionStart = this.sessionStart;
+
+    copy.sessionEnd = this.active
+            ? LocalDateTime.now()
+            : this.sessionEnd;
+
+    copy.active = false;
+
+    return copy;
+}
+
 }
