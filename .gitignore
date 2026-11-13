@@ -1,5 +1,5 @@
-
-target/
+project/target/*
+!project/target/project-1.0-SNAPSHOT.jar
 build-log.txt
 dependency-reduced-pom.xml
 *.class
