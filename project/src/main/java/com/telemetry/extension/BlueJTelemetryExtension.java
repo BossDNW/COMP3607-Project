@@ -1,3 +1,4 @@
+
 package com.telemetry.extension;
 
 import bluej.extensions2.BlueJ;
@@ -22,7 +23,9 @@ import com.telemetry.events.EventType;
 import com.telemetry.events.TelemetryEvent;
 import com.telemetry.events.TelemetryRecorder;
 import com.telemetry.events.TelemetryEventBus;
-
+import com.telemetry.reports.JsonExporter;
+import javafx.scene.control.Menu;
+import javafx.scene.control.TextInputDialog;
 import com.telemetry.session.SessionManager;
 
 import com.telemetry.reports.ReportExporterCreator;
@@ -31,6 +34,12 @@ import com.telemetry.reports.PdfExporterCreator;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.util.HashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
@@ -56,7 +65,16 @@ public class BlueJTelemetryExtension extends Extension
 
     private String currentProjectName;
 
-    // Factory Method: creators determine which exporter to build
+    private final Map<Path, Map<Path, Long>> sourceFileTimes =
+            new ConcurrentHashMap<>();
+
+    private final ScheduledExecutorService editMonitor =
+            Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread thread = new Thread(r, "bluej-edit-monitor");
+                thread.setDaemon(true);
+                return thread;
+            });
+
     private final ReportExporterCreator jsonCreator =
             new JsonExporterCreator();
 
@@ -64,7 +82,6 @@ public class BlueJTelemetryExtension extends Extension
             new PdfExporterCreator();
 
     public BlueJTelemetryExtension() {
-        // Observer: SessionManager subscribes to telemetry events
         eventBus.subscribe(recorder);
     }
 
@@ -76,57 +93,88 @@ public class BlueJTelemetryExtension extends Extension
         }
     }
 
-    
-@Override
-public void startup(BlueJ bluej) {
+    @Override
+    public void startup(BlueJ bluej) {
 
-    bluej.addPackageListener(this);
-    bluej.addCompileListener(this);
-    bluej.addClassListener(this);
-    bluej.addInvocationFinishedListener(this);
+        bluej.addPackageListener(this);
+        bluej.addCompileListener(this);
+        bluej.addClassListener(this);
+        bluej.addInvocationFinishedListener(this);
 
-    // Save session backups automatically.
-    reportService.startAutomaticBackups(sessionManager);
+        reportService.startAutomaticBackups(sessionManager);
 
-    // Manual export option in BlueJ's Tools menu.
-    bluej.setMenuGenerator(new MenuGenerator() {
+        editMonitor.scheduleAtFixedRate(this::checkSavedEdits,
+                5, 5, TimeUnit.SECONDS);
 
-        @Override
-        public MenuItem getToolsMenuItem(BPackage pkg) {
+        
+        bluej.setMenuGenerator(new MenuGenerator() {
 
-            MenuItem item = new MenuItem(
-                    "Export Telemetry Reports"
-            );
+            @Override
+            public MenuItem getToolsMenuItem(BPackage pkg) {
 
-            item.setDisable(!sessionManager.isActive());
+                Menu menu = new Menu("BlueJ Telemetry");
 
-            item.setOnAction(e -> {
+                MenuItem exportItem =
+                        new MenuItem("Export Telemetry Reports");
 
-                if (!sessionManager.isActive()) {
-                    log("No active session to export.");
-                    return;
+                exportItem.setDisable(!sessionManager.isActive());
+
+                exportItem.setOnAction(e -> {
+                    if (!sessionManager.isActive()) {
+                        log("No active session to export.");
+                        return;
+                    }
+
+                    reportService.exportReports(sessionManager);
+                    log("MANUAL REPORT EXPORT REQUESTED");
+                });
+
+                MenuItem studentIdItem =
+                        new MenuItem("Set Student ID");
+
+                studentIdItem.setOnAction(e -> {
+                    TextInputDialog dialog =
+                            new TextInputDialog(JsonExporter.studentId());
+
+                    dialog.setTitle("BlueJ Telemetry");
+                    dialog.setHeaderText("Student Identification");
+                    dialog.setContentText("Enter your student ID:");
+
+                    dialog.showAndWait().ifPresent(id -> {
+                        if (id.isBlank()) {
+                            log("Student ID was not changed.");
+                            return;
+                        }
+
+                        JsonExporter.setStudentId(id);
+                        log("Student ID updated.");
+                    });
+                });
+
+                menu.getItems().addAll(exportItem, studentIdItem);
+                return menu;
+            }
+
+            @Override
+            public void notifyPostToolsMenu(
+                    BPackage pkg,
+                    MenuItem item) {
+
+                if (item instanceof Menu menu) {
+                    for (MenuItem child : menu.getItems()) {
+                        if ("Export Telemetry Reports"
+                                .equals(child.getText())) {
+                            child.setDisable(
+                                    !sessionManager.isActive());
+                        }
+                    }
                 }
+            }
+        });
 
-                reportService.exportReports(sessionManager);
 
-                log("MANUAL REPORT EXPORT REQUESTED");
-            });
-
-            return item;
-        }
-
-        @Override
-        public void notifyPostToolsMenu(
-                BPackage pkg,
-                MenuItem item) {
-
-            item.setDisable(!sessionManager.isActive());
-        }
-    });
-
-    System.out.println("BlueJ Telemetry started!");
-}
-
+        System.out.println("BlueJ Telemetry started!");
+    }
 
     @Override
     public void packageOpened(PackageEvent event) {
@@ -145,6 +193,7 @@ public void startup(BlueJ bluej) {
             }
 
             knownClasses.put(key, classes);
+            registerSourceDirectory(event.getPackage().getDir().toPath());
 
             if (!sessionManager.isActive()) {
                 currentProjectName = name;
@@ -160,7 +209,6 @@ public void startup(BlueJ bluej) {
         }
     }
 
-    
     @Override
     public void packageClosing(PackageEvent event) {
 
@@ -173,15 +221,14 @@ public void startup(BlueJ bluej) {
             log("TOTAL EVENTS: "
                     + sessionManager.getEvents().size());
 
-            // Export JSON and PDF on the background worker.
             reportService.exportReports(sessionManager);
 
             log("REPORT EXPORT REQUESTED");
         }
 
         knownClasses.clear();
+        sourceFileTimes.clear();
     }
-
 
     @Override
     public void compileStarted(CompileEvent event) {
@@ -269,6 +316,7 @@ public void startup(BlueJ bluej) {
         }
     }
 
+    
     @Override
     public void invocationFinished(InvocationFinishedEvent event) {
 
@@ -279,12 +327,38 @@ public void startup(BlueJ bluej) {
         String className = event.getClassName();
         String methodName = event.getMethodName();
 
-        Map<String, String> details = Map.of(
-                "method",
-                methodName == null ? "<constructor>" : methodName,
-                "status",
-                event.getEventType().name()
-        );
+        Map<String, String> details = new HashMap<>();
+
+        details.put("method",
+                methodName == null ? "<constructor>" : methodName);
+
+        details.put("status",
+                event.getEventType() == null
+                        ? "UNKNOWN"
+                        : event.getEventType().name());
+
+        String objectName = event.getObjectName();
+
+        if (objectName != null) {
+            details.put("object_name", objectName);
+        }
+
+        String[] parameters = event.getParameters();
+
+        if (parameters != null) {
+            details.put("parameter_count",
+                    String.valueOf(parameters.length));
+
+            // Only store the parameter count, not potentially
+            // sensitive argument values.
+        }
+
+        Object result = event.getResult();
+
+        if (result != null) {
+            details.put("result_type",
+                    result.getClass().getSimpleName());
+        }
 
         record(EventType.PROGRAM_EXECUTED, className, details);
 
@@ -293,16 +367,24 @@ public void startup(BlueJ bluej) {
                 + " | "
                 + details.get("method")
                 + " | "
-                + event.getEventType());
+                + details.get("status"));
 
         if (event.getEventType()
                 == InvocationFinishedEvent.EventType.EXCEPTION_EXIT) {
 
-            record(EventType.RUNTIME_ERROR, className, details);
+            Map<String, String> errorDetails =
+                    new HashMap<>(details);
+
+            errorDetails.put("error_category",
+                    "RUNTIME_EXCEPTION");
+
+            record(EventType.RUNTIME_ERROR,
+                    className, errorDetails);
 
             log("RUNTIME EXCEPTION DETECTED: " + className);
         }
     }
+
 
     @Override
     public void classStateChanged(ClassEvent event) {
@@ -400,6 +482,63 @@ public void startup(BlueJ bluej) {
         );
     }
 
+    private static boolean isSourceFile(Path file) {
+        String name = file.getFileName().toString().toLowerCase();
+        return name.endsWith(".java") || name.endsWith(".stride");
+    }
+
+    private Map<Path, Long> readSourceTimes(Path directory) {
+        Map<Path, Long> result = new HashMap<>();
+        if (!Files.isDirectory(directory)) {
+            return result;
+        }
+        try (Stream<Path> files = Files.list(directory)) {
+            files.filter(Files::isRegularFile)
+                    .filter(BlueJTelemetryExtension::isSourceFile)
+                    .forEach(file -> {
+                        try {
+                            result.put(file,
+                                    Files.getLastModifiedTime(file).toMillis());
+                        } catch (IOException e) {
+                            log("Could not check source file: " + file);
+                        }
+                    });
+        } catch (IOException e) {
+            log("Could not scan source directory: " + e.getMessage());
+        }
+        return result;
+    }
+
+    private void registerSourceDirectory(Path directory) {
+        sourceFileTimes.put(directory, readSourceTimes(directory));
+    }
+
+    private void checkSavedEdits() {
+        if (!sessionManager.isActive()) {
+            return;
+        }
+        try {
+            for (Map.Entry<Path, Map<Path, Long>> directoryEntry
+                    : sourceFileTimes.entrySet()) {
+                Map<Path, Long> current = readSourceTimes(directoryEntry.getKey());
+                Map<Path, Long> previous = directoryEntry.getValue();
+                for (Map.Entry<Path, Long> fileEntry : current.entrySet()) {
+                    Long oldTime = previous.get(fileEntry.getKey());
+                    if (oldTime != null && fileEntry.getValue() > oldTime) {
+                        record(EventType.EDIT_ACTIVITY,
+                                fileEntry.getKey().getFileName().toString(),
+                                Map.of("source", "saved-file-change",
+                                        "file", fileEntry.getKey().getFileName().toString(),
+                                        "interval_seconds", "5"));
+                    }
+                }
+                sourceFileTimes.put(directoryEntry.getKey(), current);
+            }
+        } catch (RuntimeException e) {
+            log("Edit monitor failed: " + e.getMessage());
+        }
+    }
+
     private void record(
             EventType type,
             String className,
@@ -413,7 +552,6 @@ public void startup(BlueJ bluej) {
                 details
         );
 
-        // Observer: notify SessionManager through EventBus
         eventBus.publish(event);
 
         log("RECORDED: " + type);
@@ -429,7 +567,6 @@ public void startup(BlueJ bluej) {
         return getExtensionsAPIVersionMajor() >= 3;
     }
 
-
     @Override
     public void terminate() {
 
@@ -440,9 +577,9 @@ public void startup(BlueJ bluej) {
             reportService.exportReports(sessionManager);
         }
 
+        editMonitor.shutdownNow();
         reportService.shutdown();
     }
-
 
     @Override
     public String getName() {

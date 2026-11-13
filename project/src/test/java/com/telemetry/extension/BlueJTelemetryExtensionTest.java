@@ -288,4 +288,68 @@ public class BlueJTelemetryExtensionTest {
         assertEquals("NewClass",
                 lastEvent().getDetails().get("newName"));
     }
+
+
+    @Test
+    void recordsInvocationParameterCount() {
+
+        InvocationFinishedEvent event =
+                mock(InvocationFinishedEvent.class);
+
+        when(event.getClassName()).thenReturn("Calculator");
+        when(event.getMethodName()).thenReturn("add");
+        when(event.getParameters())
+                .thenReturn(new String[]{"3", "5"});
+
+        when(event.getEventType()).thenReturn(
+                InvocationFinishedEvent.EventType.NORMAL_EXIT
+        );
+
+        extension.invocationFinished(event);
+
+        assertEquals("2",
+                lastEvent().getDetails().get("parameter_count"));
+    }
+
+    @Test
+    void recordsInvocationObjectName() {
+
+        InvocationFinishedEvent event =
+                mock(InvocationFinishedEvent.class);
+
+        when(event.getClassName()).thenReturn("Calculator");
+        when(event.getMethodName()).thenReturn("add");
+        when(event.getObjectName()).thenReturn("calculator1");
+
+        when(event.getEventType()).thenReturn(
+                InvocationFinishedEvent.EventType.NORMAL_EXIT
+        );
+
+        extension.invocationFinished(event);
+
+        assertEquals("calculator1",
+                lastEvent().getDetails().get("object_name"));
+    }
+
+    @Test
+    void recordsRuntimeErrorCategory() {
+
+        InvocationFinishedEvent event =
+                mock(InvocationFinishedEvent.class);
+
+        when(event.getClassName()).thenReturn("Calculator");
+        when(event.getMethodName()).thenReturn("divide");
+
+        when(event.getEventType()).thenReturn(
+                InvocationFinishedEvent.EventType.EXCEPTION_EXIT
+        );
+
+        extension.invocationFinished(event);
+
+        assertEquals(1, count(EventType.RUNTIME_ERROR));
+
+        assertEquals("RUNTIME_EXCEPTION",
+                lastEvent().getDetails().get("error_category"));
+    }
+
 }

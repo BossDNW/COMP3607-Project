@@ -1,9 +1,0 @@
-com\telemetry\session\SessionManagerTest.class
-com\telemetry\reports\JsonExporterTest.class
-com\telemetry\session\SessionSnapshotTest.class
-com\telemetry\reports\ReportExporterCreatorTest.class
-com\telemetry\analytics\TelemetryAnalyzerTest.class
-com\telemetry\reports\PdfReportGeneratorTest.class
-com\telemetry\events\TelemetryEventBusTest.class
-com\telemetry\extension\BlueJTelemetryExtensionTest.class
-com\telemetry\analytics\ActivityTimeAnalyzerTest.class
