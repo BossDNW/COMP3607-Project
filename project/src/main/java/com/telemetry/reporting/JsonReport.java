@@ -22,7 +22,7 @@ public class JsonReport implements ReportExporter
     @Override
     public void export(Session session, Path output) throws IOException
     {
-        SessionStats stats = new session.getStats();
+        SessionStats stats = session.getStats();
 
         Map<String, Object> report = new LinkedHashMap<>();
 
