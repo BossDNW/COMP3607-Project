@@ -22,38 +22,45 @@ public class SessionStats implements Consumer<TelemetryEvent> {
 
     private final List<LocalDateTime> compileTimes= new ArrayList<>();
     private final Map<String, Integer> errors= new LinkedHashMap<>();
-    private final Map<String, Consumer<TelementryEvent>> handlers= new HashMap<>();
+    private final Map<String, Consumer<TelemetryEvent>> handlers= new HashMap<>();
 
-    public SessionStats(){
-        handlers.put("COMPILATION_STARTED", event -> {
-            attempts++;
-            compileTimes.add(event.getTime());
-        });
+    @Override
+    public void accept (TelemetryEvent event){
+        switch (event.getType()){
 
-        handlers.put("COMPILATION_SUCCESS", event -> {
-            successes++;
-        });
+            case "COMPILATION_STARTED":
+                attempts++;
+                compileTimes.add(event.getTime());
+                break;
 
-        handlers.put("COMPILATION_FAILURE", event -> {
-            failures++;
-        });
-
-        handlers.put("COMPILATION_ERROR", event -> {
-            errors.merge(event.getDetails(), 1, Integer::sum);
-        });
-
-        handlers.put ("EDIT_ACTIVITY", event -> {
-            edits++;
-        });
-
-        handlers.put("PROGRAM_EXCUTED", event -> {
-            runs++;
-        });
-
-        handlers.put("RUNTIME_ERROR", event -> {
-            runtimeErrors++;
-        });
-
+            case "COMPILATION_SUCCESS":
+                successes++;
+                break;
+            
+            case "COMPILATION_FAILURE":
+                failures++;
+                break;
+            
+            case "COMPILATION_ERROR":
+                errors.merge(event.getDetails(), 1, Integer::sum);
+                break;
+            
+            case "EDIT_ACTIVITY":
+                edits++;
+                break;
+            
+            case "PROGRAM_EXECUTED":
+                runs++;
+                break;
+            
+            case "RUNTIME_ERROR":
+                runtimeErrors++;
+                break;
+            
+            default:
+                break;
+        }
     }
 
+    
 }
