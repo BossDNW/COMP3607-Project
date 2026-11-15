@@ -6,12 +6,13 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 
 import com.telemetry.integration.TelemetryEvent;
+import com.telemetry.integration.Session;
+import com.telemetry.integration.TelemetryObserver;
 
 
-public class SessionStats implements Consumer<TelemetryEvent> {
+public class SessionStats implements TelemetryObserver {
     private int attempts;
     private int successes;
     private int failures;
@@ -23,7 +24,7 @@ public class SessionStats implements Consumer<TelemetryEvent> {
     private final Map<String, Integer> errors= new LinkedHashMap<>();
 
     @Override
-    public void accept (TelemetryEvent event){
+    public void update(TelemetryEvent event) {
         switch (event.getType()){
 
             case "COMPILATION_STARTED":
