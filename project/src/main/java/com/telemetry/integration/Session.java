@@ -107,31 +107,28 @@ public class Session {
     }
 
     public synchronized LocalDateTime getStart() {
-        return start;
+        return this.start;
     }
 
     public synchronized LocalDateTime getEnd() {
-        return end;
+        return this.end;
     }
 
     public synchronized List<TelemetryEvent> getEvents() {
-        return new ArrayList<>(events);
+        return new ArrayList<>(this.events);
     }
 
     public synchronized SessionStats getStats() {
-        return stats;
+        return this.stats;
     }
 
     public synchronized long durationSeconds() {
-        if (start == null) {
+        if (this.start == null) {
             return 0;
         }
 
-        LocalDateTime stop = end == null
-                ? LocalDateTime.now()
-                : end;
+        LocalDateTime stop = this.end == null ? LocalDateTime.now()  : this.end;
 
-        return Math.max(
-                0, Duration.between(start, stop).getSeconds());
+        return Math.max(0, Duration.between(this.start, stop).getSeconds());
     }
 }

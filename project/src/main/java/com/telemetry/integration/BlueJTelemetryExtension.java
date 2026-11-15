@@ -1,85 +1,325 @@
 
 package com.telemetry.integration;
 
-import bluej.extensions2.BlueJ;
-import bluej.extensions2.Extension;
-import bluej.extensions2.ExtensionException;
-import bluej.extensions2.event.PackageEvent;
-import bluej.extensions2.event.PackageListener;
-import bluej.extensions2.event.CompileEvent;
-import bluej.extensions2.event.CompileListener;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.prefs.Preferences;
 
-import java.time.LocalDateTime;
+import bluej.extensions2.*;
+import bluej.extensions2.event.*;
 
-public class BlueJTelemetryExtension extends Extension
-        implements PackageListener, CompileListener {
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextInputDialog;
+
+
+
+public class BlueJTelemetryExtension extends Extension implements PackageListener, ClassListener, CompileListener, InvocationFinishedListener {
+
+    private final Preferences settings =
+            Preferences.userNodeForPackage(
+                    BlueJTelemetryExtension.class);
+
+    private final Map<String, Set<String>> knownClasses =
+            new HashMap<>();
+
+    private final Set<String> openPackages = new HashSet<>();
+
+    private volatile Session session;
 
     @Override
     public void startup(BlueJ bluej) {
-        bluej.addPackageListener(this);
-        bluej.addCompileListener(this);
 
-        System.out.println("BlueJ Telemetry started!");
+        bluej.addPackageListener(this);
+        bluej.addClassListener(this);
+        bluej.addCompileListener(this);
+        bluej.addInvocationFinishedListener(this);
+
+        bluej.setMenuGenerator(new MenuGenerator() {
+
+            @Override
+            public MenuItem getToolsMenuItem(BPackage pkg) {
+
+                Menu menu = new Menu("BlueJ Telemetry");
+
+                MenuItem export =
+                        new MenuItem("Export Reports");
+
+                // Temporarily disabled until reporting is ready.
+                export.setDisable(true);
+
+                MenuItem setId =
+                        new MenuItem("Set Student ID");
+
+                setId.setOnAction(e -> {
+
+                    TextInputDialog dialog =
+                            new TextInputDialog(
+                                    settings.get("studentId", ""));
+
+                    dialog.setTitle("BlueJ Telemetry");
+                    dialog.setHeaderText("Student Identification");
+                    dialog.setContentText("Student ID:");
+
+                    dialog.showAndWait().ifPresent(id -> {
+
+                        if (!id.isBlank()) {
+
+                            settings.put("studentId", id.trim());
+
+                            if (session != null) {
+                                session.setStudentId(id.trim());
+                            }
+                        }
+                    });
+                });
+
+                menu.getItems().addAll(export, setId);
+
+                return menu;
+            }
+        });
     }
 
     @Override
     public void packageOpened(PackageEvent event) {
-        try {
-            String name = event.getPackage()
-                               .getProject()
-                               .getName();
 
-            System.out.println("PROJECT OPENED: " + name);
-        } catch (ExtensionException e) {
-            System.out.println("Unable to identify project.");
+        try {
+            BPackage pkg = event.getPackage();
+
+            String key = pkg.getDir().getAbsolutePath();
+
+            String projectName = pkg.getProject().getName();
+
+            openPackages.add(key);
+
+            Set<String> names = new HashSet<>();
+
+            for (BClass cls : pkg.getClasses()) {
+                names.add(cls.getName());
+            }
+
+            knownClasses.put(key, names);
+
+            if (session == null || !session.isActive()) {
+
+                session = new Session();
+
+                session.setStudentId(
+                        settings.get("studentId", "STUDENT_ID"));
+
+                session.setProjectDirectory(
+                        pkg.getProject().getDir().toPath());
+
+                session.start(projectName);
+            }
+
+        } catch (ExtensionException ex) {
+
+            System.err.println(
+                    "BlueJ telemetry: " + ex.getMessage());
         }
     }
 
     @Override
     public void packageClosing(PackageEvent event) {
-        System.out.println("PACKAGE CLOSING");
+
+        String key = directory(event.getPackage());
+
+        if (key != null) {
+            openPackages.remove(key);
+            knownClasses.remove(key);
+        }
+
+        if (openPackages.isEmpty()) {
+            finishSession();
+        }
+    }
+
+    private String directory(BPackage pkg) {
+
+        try {
+            return pkg.getDir().getAbsolutePath();
+
+        } catch (ExtensionException ex) {
+            return null;
+        }
+    }
+
+    private void record(
+            String type,
+            String name,
+            String details) {
+
+        Session current = session;
+
+        if (current != null) {
+            current.record(type, name, details);
+        }
+    }
+
+    @Override
+    public void classStateChanged(ClassEvent event) {
+
+        String key = directory(event.getPackage());
+
+        Set<String> names = knownClasses.get(key);
+
+        if (names == null) {
+            return;
+        }
+
+        String name = event.getBClass().getName();
+
+        if (names.add(name)) {
+
+            record("CLASS_CREATED", name, "");
+
+        } else if (!event.isClassCompiled()
+                && !event.hasError()) {
+
+            record("CLASS_MODIFIED", name, "");
+        }
+    }
+
+    @Override
+    public void classNameChanged(ClassEvent event) {
+
+        String key = directory(event.getPackage());
+
+        Set<String> names = knownClasses.get(key);
+
+        String oldName = event.getOldName();
+
+        String newName =
+                event.getBClass().getName();
+
+        if (names != null) {
+            names.remove(oldName);
+            names.add(newName);
+        }
+
+        record(
+                "CLASS_RENAMED",
+                newName,
+                "Previously: " + oldName);
+    }
+
+    @Override
+    public void classRemoved(ClassEvent event) {
+
+        String key = directory(event.getPackage());
+
+        String name =
+                event.getBClass().getName();
+
+        Set<String> names = knownClasses.get(key);
+
+        if (names != null) {
+            names.remove(name);
+        }
+
+        record("CLASS_DELETED", name, "");
     }
 
     @Override
     public void compileStarted(CompileEvent event) {
+
         if (event.isUserGeneratedCompilation()) {
-            log("COMPILATION STARTED");
+            record("COMPILATION_STARTED", "", "");
         }
     }
 
     @Override
     public void compileSucceeded(CompileEvent event) {
+
         if (event.isUserGeneratedCompilation()) {
-            log("COMPILATION SUCCESS");
+            record("COMPILATION_SUCCESS", "", "");
         }
     }
 
     @Override
     public void compileFailed(CompileEvent event) {
+
         if (event.isUserGeneratedCompilation()) {
-            log("COMPILATION FAILED");
+            record("COMPILATION_FAILURE", "", "");
         }
     }
 
     @Override
     public void compileError(CompileEvent event) {
+
         if (event.isUserGeneratedCompilation()) {
-            log("COMPILATION ERROR");
-            System.out.println("Line: " + event.getErrorLineNumber());
-            System.out.println("Message: " + event.getErrorMessage());
+
+            record(
+                    "COMPILATION_ERROR",
+                    "",
+                    "Line " + event.getErrorLineNumber()
+                            + ": " + event.getErrorMessage());
         }
     }
 
     @Override
     public void compileWarning(CompileEvent event) {
+
         if (event.isUserGeneratedCompilation()) {
-            log("COMPILATION WARNING");
-            System.out.println("Message: " + event.getErrorMessage());
+
+            record(
+                    "COMPILATION_WARNING",
+                    "",
+                    event.getErrorMessage());
         }
     }
 
-    private void log(String message) {
-        System.out.println(LocalDateTime.now() + " | " + message);
+    @Override
+    public void invocationFinished(
+            InvocationFinishedEvent event) {
+
+        if (session == null || !session.isActive()) {
+            return;
+        }
+
+        String name = event.getClassName();
+
+        String method =
+                event.getMethodName() == null
+                        ? "<constructor>"
+                        : event.getMethodName();
+
+        String status =
+                event.getEventType() == null
+                        ? "UNKNOWN"
+                        : event.getEventType().name();
+
+        record(
+                "PROGRAM_EXECUTED",
+                name,
+                method + ": " + status);
+
+        if (event.getEventType()
+                == InvocationFinishedEvent.EventType.EXCEPTION_EXIT) {
+
+            record(
+                    "RUNTIME_ERROR",
+                    name,
+                    method + ": " + status);
+        }
+    }
+
+    private void finishSession() {
+
+        Session current = session;
+
+        if (current != null && current.isActive()) {
+            current.finish();
+        }
+    }
+
+    @Override
+    public void terminate() {
+        finishSession();
     }
 
     @Override
@@ -94,11 +334,11 @@ public class BlueJTelemetryExtension extends Extension
 
     @Override
     public String getVersion() {
-        return "1.0";
+        return "2.0";
     }
 
     @Override
     public String getDescription() {
-        return "Collects telemetry from BlueJ coding sessions.";
+        return "BlueJ coding session tracker";
     }
 }
