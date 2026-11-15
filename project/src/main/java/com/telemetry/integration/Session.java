@@ -21,7 +21,7 @@ public class Session {
     private final SessionStats stats = new SessionStats();
 
     public Session(){
-        return;
+        addObserver(stats);
     }
 
     public synchronized void addObserver(TelemetryObserver observer){
