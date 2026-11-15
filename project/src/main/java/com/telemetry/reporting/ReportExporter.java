@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import com.telemetry.integration.Session;
 
-public interface ReportExporter {
-    
+public interface ReportExporter
+{
     void export(Session session, Path output) throws IOException;
 }
