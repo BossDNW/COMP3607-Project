@@ -1,6 +1,7 @@
 package com.telemetry.reporting;
 
 public abstract class ReportFactory {
+    
     public abstract ReportExporter createReport();
     
     public static class JsonFactory extends ReportFactory {
