@@ -1,5 +1,5 @@
 
-package com.telemetry.extension;
+package com.telemetry.integration;
 
 import bluej.extensions2.BlueJ;
 import bluej.extensions2.Extension;

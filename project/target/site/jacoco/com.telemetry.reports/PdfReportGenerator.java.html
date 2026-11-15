@@ -1,0 +1,646 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PdfReportGenerator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">project</a> &gt; <a href="index.source.html" class="el_package">com.telemetry.reports</a> &gt; <span class="el_source">PdfReportGenerator.java</span></div><h1>PdfReportGenerator.java</h1><pre class="source lang-java linenums">
+package com.telemetry.reports;
+
+import com.telemetry.analytics.ActivityTimeAnalyzer;
+import com.telemetry.analytics.TelemetryAnalyzer;
+import com.telemetry.events.EventType;
+import com.telemetry.events.TelemetryEvent;
+import com.telemetry.session.SessionManager;
+
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+
+import java.awt.Color;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+
+<span class="fc" id="L24">public class PdfReportGenerator implements ReportExporter {</span>
+
+<span class="fc" id="L26">    private static final PDType1Font NORMAL =</span>
+            new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+
+<span class="fc" id="L29">    private static final PDType1Font BOLD =</span>
+            new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
+
+<span class="fc" id="L32">    private static final Color NAVY = new Color(32, 48, 78);</span>
+<span class="fc" id="L33">    private static final Color BLUE = new Color(65, 125, 205);</span>
+<span class="fc" id="L34">    private static final Color RED = new Color(200, 70, 75);</span>
+<span class="fc" id="L35">    private static final Color GREEN = new Color(43, 150, 112);</span>
+<span class="fc" id="L36">    private static final Color GRAY = new Color(190, 195, 205);</span>
+
+    @Override
+    public void export(SessionManager session, Path output)
+            throws IOException {
+<span class="fc" id="L41">        generate(session, output);</span>
+<span class="fc" id="L42">    }</span>
+
+    public void generate(SessionManager session, Path output)
+            throws IOException {
+
+<span class="fc" id="L47">        List&lt;TelemetryEvent&gt; events = session.getEvents();</span>
+
+<span class="fc" id="L49">        TelemetryAnalyzer analyzer =</span>
+                new TelemetryAnalyzer(events);
+
+<span class="fc" id="L52">        ActivityTimeAnalyzer activity =</span>
+                new ActivityTimeAnalyzer(events);
+
+<span class="fc" id="L55">        long active = activity.getActiveTimeSeconds(</span>
+<span class="fc" id="L56">                session.getSessionStart(),</span>
+<span class="fc" id="L57">                session.getSessionEnd());</span>
+
+<span class="fc" id="L59">        long idle = activity.getIdleTimeSeconds(</span>
+<span class="fc" id="L60">                session.getSessionStart(),</span>
+<span class="fc" id="L61">                session.getSessionEnd());</span>
+
+<span class="fc" id="L63">        Path parent = output.toAbsolutePath().getParent();</span>
+
+<span class="pc bpc" id="L65" title="1 of 2 branches missed.">        if (parent != null) {</span>
+<span class="fc" id="L66">            Files.createDirectories(parent);</span>
+        }
+
+<span class="fc" id="L69">        try (PDDocument document = new PDDocument()) {</span>
+
+            // ============================
+            // PAGE 1 - SESSION SUMMARY
+            // ============================
+
+<span class="fc" id="L75">            PDPage page1 = new PDPage(PDRectangle.A4);</span>
+<span class="fc" id="L76">            document.addPage(page1);</span>
+
+<span class="fc" id="L78">            try (PDPageContentStream cs =</span>
+                    new PDPageContentStream(document, page1)) {
+
+<span class="fc" id="L81">                heading(cs,</span>
+                        &quot;BlueJ Telemetry - Session Report&quot;,
+                        780);
+
+<span class="fc" id="L85">                text(cs,</span>
+<span class="fc" id="L86">                        &quot;Student ID: &quot; + JsonExporter.studentId(),</span>
+                        50, 755);
+
+<span class="fc" id="L89">                text(cs,</span>
+                        &quot;Session start: &quot;
+<span class="fc" id="L91">                                + session.getSessionStart(),</span>
+                        50, 735);
+
+<span class="fc" id="L94">                text(cs,</span>
+                        &quot;Session end: &quot;
+<span class="fc" id="L96">                                + session.getSessionEnd(),</span>
+                        50, 720);
+
+<span class="fc" id="L99">                section(cs, &quot;Session Summary&quot;, 690);</span>
+
+<span class="fc" id="L101">                text(cs,</span>
+                        &quot;Duration: &quot;
+<span class="fc" id="L103">                                + session.getSessionDuration()</span>
+<span class="fc" id="L104">                                        .toSeconds()</span>
+                                + &quot; seconds&quot;,
+                        50, 670);
+
+<span class="fc" id="L108">                text(cs,</span>
+                        &quot;Total compilations: &quot;
+<span class="fc" id="L110">                                + analyzer.getTotalCompilations(),</span>
+                        50, 652);
+
+<span class="fc" id="L113">                text(cs,</span>
+                        &quot;Successful compilations: &quot;
+<span class="fc" id="L115">                                + analyzer.getSuccessfulCompilations(),</span>
+                        50, 634);
+
+<span class="fc" id="L118">                text(cs,</span>
+                        &quot;Failed compilations: &quot;
+<span class="fc" id="L120">                                + analyzer.getFailedCompilations(),</span>
+                        50, 616);
+
+<span class="fc" id="L123">                text(cs,</span>
+<span class="fc" id="L124">                        String.format(</span>
+                                &quot;Compilation success rate: %.1f%%&quot;,
+<span class="fc" id="L126">                                analyzer.getCompilationSuccessRate()),</span>
+                        50, 598);
+
+                // CHART 1
+<span class="fc" id="L130">                section(cs,</span>
+                        &quot;Chart 1 - Compilation Outcomes&quot;,
+                        572);
+
+<span class="fc" id="L134">                stackedBar(cs,</span>
+                        50, 540,
+                        450, 20,
+<span class="fc" id="L137">                        analyzer.getSuccessfulCompilations(),</span>
+<span class="fc" id="L138">                        analyzer.getFailedCompilations(),</span>
+                        BLUE, RED);
+
+<span class="fc" id="L141">                text(cs,</span>
+                        &quot;Successful: &quot;
+<span class="fc" id="L143">                                + analyzer.getSuccessfulCompilations(),</span>
+                        50, 522);
+
+<span class="fc" id="L146">                text(cs,</span>
+                        &quot;Failed: &quot;
+<span class="fc" id="L148">                                + analyzer.getFailedCompilations(),</span>
+                        265, 522);
+
+                // ERROR SUMMARY
+<span class="fc" id="L152">                section(cs, &quot;Error Summary&quot;, 490);</span>
+
+<span class="fc" id="L154">                text(cs,</span>
+                        &quot;Compiler errors: &quot;
+<span class="fc" id="L156">                                + analyzer.getTotalErrors(),</span>
+                        50, 471);
+
+<span class="fc" id="L159">                text(cs,</span>
+                        &quot;Warnings: &quot;
+<span class="fc" id="L161">                                + count(</span>
+                                        events,
+                                        EventType.COMPILATION_WARNING),
+                        50, 455);
+
+<span class="fc bfc" id="L166" title="All 2 branches covered.">                if (analyzer.getTotalErrors() == 0) {</span>
+
+<span class="fc" id="L168">                    text(cs,</span>
+                            &quot;No compiler errors detected.&quot;,
+                            50, 438);
+
+                } else {
+
+<span class="fc" id="L174">                    int errorY = 438;</span>
+
+                    for (Map.Entry&lt;String, Integer&gt; entry
+<span class="fc bfc" id="L177" title="All 2 branches covered.">                            : analyzer.getErrorFrequencies()</span>
+<span class="fc" id="L178">                                    .entrySet()) {</span>
+
+<span class="pc bpc" id="L180" title="1 of 2 branches missed.">                        if (errorY &lt; 413) {</span>
+<span class="nc" id="L181">                            break;</span>
+                        }
+
+<span class="fc" id="L184">                        text(cs,</span>
+<span class="fc" id="L185">                                entry.getKey()</span>
+                                        + &quot; (&quot;
+<span class="fc" id="L187">                                        + entry.getValue()</span>
+                                        + &quot;)&quot;,
+                                60, errorY);
+
+<span class="fc" id="L191">                        errorY -= 15;</span>
+<span class="fc" id="L192">                    }</span>
+                }
+
+                // CHART 2
+<span class="fc" id="L196">                section(cs,</span>
+                        &quot;Chart 2 - Estimated Active vs Idle Time&quot;,
+                        390);
+
+<span class="fc" id="L200">                stackedBar(cs,</span>
+                        50, 358,
+                        450, 20,
+                        active, idle,
+                        GREEN, GRAY);
+
+<span class="fc" id="L206">                text(cs,</span>
+                        &quot;Estimated active time: &quot;
+                                + active
+                                + &quot; seconds&quot;,
+                        50, 339);
+
+<span class="fc" id="L212">                text(cs,</span>
+                        &quot;Estimated idle time: &quot;
+                                + idle
+                                + &quot; seconds&quot;,
+                        280, 339);
+
+<span class="fc" id="L218">                text(cs,</span>
+                        &quot;Estimation threshold: 180 seconds&quot;,
+                        50, 321);
+
+                // DEVELOPMENT SUMMARY
+<span class="fc" id="L223">                section(cs, &quot;Development Summary&quot;, 287);</span>
+
+<span class="fc" id="L225">                text(cs,</span>
+                        &quot;Classes created: &quot;
+<span class="fc" id="L227">                                + count(</span>
+                                        events,
+                                        EventType.CLASS_CREATED),
+                        50, 265);
+
+<span class="fc" id="L232">                text(cs,</span>
+                        &quot;Classes modified: &quot;
+<span class="fc" id="L234">                                + count(</span>
+                                        events,
+                                        EventType.CLASS_MODIFIED),
+                        250, 265);
+
+<span class="fc" id="L239">                text(cs,</span>
+                        &quot;Classes renamed: &quot;
+<span class="fc" id="L241">                                + count(</span>
+                                        events,
+                                        EventType.CLASS_RENAMED),
+                        50, 245);
+
+<span class="fc" id="L246">                text(cs,</span>
+                        &quot;Classes deleted: &quot;
+<span class="fc" id="L248">                                + count(</span>
+                                        events,
+                                        EventType.CLASS_DELETED),
+                        250, 245);
+
+<span class="fc" id="L253">                text(cs,</span>
+                        &quot;Saved edit events: &quot;
+<span class="fc" id="L255">                                + count(</span>
+                                        events,
+                                        EventType.EDIT_ACTIVITY),
+                        50, 225);
+
+<span class="fc" id="L260">                text(cs,</span>
+                        &quot;Program executions: &quot;
+<span class="fc" id="L262">                                + count(</span>
+                                        events,
+                                        EventType.PROGRAM_EXECUTED),
+                        50, 205);
+
+<span class="fc" id="L267">                text(cs,</span>
+                        &quot;Runtime exceptions: &quot;
+<span class="fc" id="L269">                                + count(</span>
+                                        events,
+                                        EventType.RUNTIME_ERROR),
+                        50, 185);
+
+<span class="fc" id="L274">                footer(cs, &quot;Page 1 of 2&quot;);</span>
+            }
+
+            // ============================
+            // PAGE 2 - DEVELOPMENT DETAILS
+            // ============================
+
+<span class="fc" id="L281">            PDPage page2 = new PDPage(PDRectangle.A4);</span>
+<span class="fc" id="L282">            document.addPage(page2);</span>
+
+<span class="fc" id="L284">            try (PDPageContentStream cs =</span>
+                    new PDPageContentStream(document, page2)) {
+
+<span class="fc" id="L287">                heading(cs,</span>
+                        &quot;BlueJ Telemetry - Development Timeline&quot;,
+                        780);
+
+<span class="fc" id="L291">                section(cs,</span>
+                        &quot;Class, Editing and Execution Events&quot;,
+                        750);
+
+<span class="fc" id="L295">                int y = 727;</span>
+<span class="fc" id="L296">                int displayed = 0;</span>
+<span class="fc" id="L297">                long totalTimeline = 0;</span>
+
+<span class="fc bfc" id="L299" title="All 2 branches covered.">                for (TelemetryEvent event : events) {</span>
+
+<span class="fc bfc" id="L301" title="All 2 branches covered.">                    if (!isTimelineEvent(event.getType())) {</span>
+<span class="fc" id="L302">                        continue;</span>
+                    }
+
+<span class="fc" id="L305">                    totalTimeline++;</span>
+
+<span class="pc bpc" id="L307" title="1 of 2 branches missed.">                    if (displayed &gt;= 11) {</span>
+<span class="nc" id="L308">                        continue;</span>
+                    }
+
+<span class="fc" id="L311">                    String line =</span>
+<span class="fc" id="L312">                            event.getTimestamp()</span>
+<span class="fc" id="L313">                                    .toLocalTime()</span>
+<span class="fc" id="L314">                                    .withNano(0)</span>
+                            + &quot; | &quot;
+<span class="fc" id="L316">                            + event.getType()</span>
+                            + &quot; | &quot;
+<span class="fc" id="L318">                            + shortName(event);</span>
+
+<span class="fc" id="L320">                    text(cs, line, 50, y);</span>
+
+<span class="fc" id="L322">                    y -= 19;</span>
+<span class="fc" id="L323">                    displayed++;</span>
+<span class="fc" id="L324">                }</span>
+
+<span class="fc bfc" id="L326" title="All 2 branches covered.">                if (displayed == 0) {</span>
+
+<span class="fc" id="L328">                    text(cs,</span>
+                            &quot;No class activity detected.&quot;,
+                            50, 727);
+
+<span class="pc bpc" id="L332" title="1 of 2 branches missed.">                } else if (totalTimeline &gt; displayed) {</span>
+
+<span class="nc" id="L334">                    text(cs,</span>
+                            &quot;Additional events in JSON: &quot;
+                                    + (totalTimeline - displayed),
+                            50, 503);
+                }
+
+                // COMPILATION INTERVALS
+<span class="fc" id="L341">                section(cs,</span>
+                        &quot;Compilation Intervals&quot;,
+                        475);
+
+<span class="fc" id="L345">                text(cs,</span>
+<span class="fc" id="L346">                        String.format(</span>
+                                &quot;Average interval: %.2f seconds&quot;,
+<span class="fc" id="L348">                                analyzer.getAverageCompilationInterval()),</span>
+                        50, 455);
+
+<span class="fc" id="L351">                text(cs,</span>
+                        &quot;Intervals (seconds): &quot;
+<span class="fc" id="L353">                                + analyzer.getCompilationIntervals(),</span>
+                        50, 438);
+
+                // CHART 3
+<span class="fc" id="L357">                section(cs,</span>
+                        &quot;Chart 3 - Development Activity&quot;,
+                        410);
+
+<span class="fc" id="L361">                String[] labels = {</span>
+                        &quot;Saved edits&quot;,
+                        &quot;Class changes&quot;,
+                        &quot;Executions&quot;,
+                        &quot;Runtime errors&quot;
+                };
+
+<span class="fc" id="L368">                long[] values = {</span>
+<span class="fc" id="L369">                        count(events, EventType.EDIT_ACTIVITY),</span>
+
+<span class="fc" id="L371">                        count(events, EventType.CLASS_CREATED)</span>
+<span class="fc" id="L372">                                + count(</span>
+                                        events,
+                                        EventType.CLASS_MODIFIED)
+<span class="fc" id="L375">                                + count(</span>
+                                        events,
+                                        EventType.CLASS_RENAMED)
+<span class="fc" id="L378">                                + count(</span>
+                                        events,
+                                        EventType.CLASS_DELETED),
+
+<span class="fc" id="L382">                        count(events, EventType.PROGRAM_EXECUTED),</span>
+
+<span class="fc" id="L384">                        count(events, EventType.RUNTIME_ERROR)</span>
+                };
+
+<span class="fc" id="L387">                horizontalBars(cs, labels, values, 385);</span>
+
+                // RUNTIME AND COMPILATION ERRORS
+<span class="fc" id="L390">                section(cs,</span>
+                        &quot;Runtime and Error Details&quot;,
+                        235);
+
+<span class="fc" id="L394">                int detailsY = 215;</span>
+<span class="fc" id="L395">                int errorsShown = 0;</span>
+
+<span class="fc bfc" id="L397" title="All 2 branches covered.">                for (TelemetryEvent event : events) {</span>
+
+<span class="pc bpc" id="L399" title="1 of 2 branches missed.">                    if (event.getType() != EventType.RUNTIME_ERROR</span>
+<span class="fc bfc" id="L400" title="All 2 branches covered.">                            &amp;&amp; event.getType()</span>
+                                    != EventType.COMPILATION_ERROR) {
+<span class="fc" id="L402">                        continue;</span>
+                    }
+
+<span class="pc bpc" id="L405" title="1 of 2 branches missed.">                    if (detailsY &lt; 115) {</span>
+<span class="nc" id="L406">                        break;</span>
+                    }
+
+<span class="fc" id="L409">                    String message =</span>
+<span class="fc" id="L410">                            event.getDetails()</span>
+<span class="fc" id="L411">                                    .getOrDefault(</span>
+                                            &quot;message&quot;,
+<span class="fc" id="L413">                                            event.getDetails()</span>
+<span class="fc" id="L414">                                                    .getOrDefault(</span>
+                                                            &quot;error_category&quot;,
+<span class="fc" id="L416">                                                            event.getType()</span>
+<span class="fc" id="L417">                                                                    .name()));</span>
+
+<span class="fc" id="L419">                    text(cs,</span>
+<span class="fc" id="L420">                            event.getTimestamp()</span>
+<span class="fc" id="L421">                                    .toLocalTime()</span>
+<span class="fc" id="L422">                                    .withNano(0)</span>
+                                    + &quot; | &quot;
+                                    + message,
+                            50, detailsY);
+
+<span class="fc" id="L427">                    detailsY -= 18;</span>
+<span class="fc" id="L428">                    errorsShown++;</span>
+<span class="fc" id="L429">                }</span>
+
+<span class="fc bfc" id="L431" title="All 2 branches covered.">                if (errorsShown == 0) {</span>
+
+<span class="fc" id="L433">                    text(cs,</span>
+                            &quot;No compilation or runtime errors recorded.&quot;,
+                            50, 215);
+                }
+
+<span class="fc" id="L438">                footer(cs, &quot;Page 2 of 2&quot;);</span>
+            }
+
+<span class="fc" id="L441">            document.save(output.toFile());</span>
+        }
+<span class="fc" id="L443">    }</span>
+
+    // ============================
+    // EVENT HELPERS
+    // ============================
+
+    private boolean isTimelineEvent(EventType type) {
+
+<span class="pc bpc" id="L451" title="6 of 14 branches missed.">        return type == EventType.CLASS_CREATED</span>
+                || type == EventType.CLASS_MODIFIED
+                || type == EventType.CLASS_RENAMED
+                || type == EventType.CLASS_DELETED
+                || type == EventType.EDIT_ACTIVITY
+                || type == EventType.PROGRAM_EXECUTED
+                || type == EventType.RUNTIME_ERROR;
+    }
+
+    private String shortName(TelemetryEvent event) {
+
+<span class="fc" id="L462">        String name = event.getClassName();</span>
+<span class="fc" id="L463">        String method = event.getDetails().get(&quot;method&quot;);</span>
+
+<span class="pc bpc" id="L465" title="1 of 2 branches missed.">        if (name == null) {</span>
+<span class="nc" id="L466">            name = &quot;&quot;;</span>
+        }
+
+<span class="pc bpc" id="L469" title="3 of 4 branches missed.">        if (method != null &amp;&amp; !method.isBlank()) {</span>
+<span class="nc" id="L470">            name += &quot;.&quot; + method;</span>
+        }
+
+<span class="fc" id="L473">        return name;</span>
+    }
+
+    private long count(
+            List&lt;TelemetryEvent&gt; events,
+            EventType type) {
+
+<span class="fc" id="L480">        return events.stream()</span>
+<span class="fc bfc" id="L481" title="All 2 branches covered.">                .filter(event -&gt; event.getType() == type)</span>
+<span class="fc" id="L482">                .count();</span>
+    }
+
+    // ============================
+    // CHART HELPERS
+    // ============================
+
+    private void stackedBar(
+            PDPageContentStream cs,
+            float x,
+            float y,
+            float width,
+            float height,
+            long first,
+            long second,
+            Color firstColor,
+            Color secondColor)
+            throws IOException {
+
+<span class="fc" id="L501">        long total = first + second;</span>
+
+<span class="fc bfc" id="L503" title="All 2 branches covered.">        if (total == 0) {</span>
+
+<span class="fc" id="L505">            cs.setNonStrokingColor(GRAY);</span>
+<span class="fc" id="L506">            cs.addRect(x, y, width, height);</span>
+<span class="fc" id="L507">            cs.fill();</span>
+
+<span class="fc" id="L509">            return;</span>
+        }
+
+<span class="fc" id="L512">        float firstWidth =</span>
+                width * (float) first / total;
+
+<span class="fc" id="L515">        float secondWidth =</span>
+                width - firstWidth;
+
+<span class="pc bpc" id="L518" title="1 of 2 branches missed.">        if (firstWidth &gt; 0) {</span>
+
+<span class="fc" id="L520">            cs.setNonStrokingColor(firstColor);</span>
+<span class="fc" id="L521">            cs.addRect(x, y, firstWidth, height);</span>
+<span class="fc" id="L522">            cs.fill();</span>
+        }
+
+<span class="pc bpc" id="L525" title="1 of 2 branches missed.">        if (secondWidth &gt; 0) {</span>
+
+<span class="fc" id="L527">            cs.setNonStrokingColor(secondColor);</span>
+
+<span class="fc" id="L529">            cs.addRect(</span>
+                    x + firstWidth,
+                    y,
+                    secondWidth,
+                    height);
+
+<span class="fc" id="L535">            cs.fill();</span>
+        }
+<span class="fc" id="L537">    }</span>
+
+    private void horizontalBars(
+            PDPageContentStream cs,
+            String[] labels,
+            long[] values,
+            int startY)
+            throws IOException {
+
+<span class="fc" id="L546">        long max = 1;</span>
+
+<span class="fc bfc" id="L548" title="All 2 branches covered.">        for (long value : values) {</span>
+<span class="fc" id="L549">            max = Math.max(max, value);</span>
+        }
+
+<span class="fc bfc" id="L552" title="All 2 branches covered.">        for (int i = 0; i &lt; labels.length; i++) {</span>
+
+<span class="fc" id="L554">            int y = startY - i * 32;</span>
+
+<span class="fc" id="L556">            text(cs, labels[i], 50, y);</span>
+
+<span class="fc" id="L558">            float barWidth =</span>
+                    270f * values[i] / max;
+
+<span class="fc bfc" id="L561" title="All 2 branches covered.">            if (barWidth &gt; 0) {</span>
+
+<span class="fc" id="L563">                cs.setNonStrokingColor(BLUE);</span>
+<span class="fc" id="L564">                cs.addRect(</span>
+                        170,
+                        y - 2,
+                        barWidth,
+                        13);
+<span class="fc" id="L569">                cs.fill();</span>
+            }
+
+<span class="fc" id="L572">            text(cs,</span>
+<span class="fc" id="L573">                    String.valueOf(values[i]),</span>
+                    455,
+                    y);
+        }
+<span class="fc" id="L577">    }</span>
+
+    // ============================
+    // PDF TEXT HELPERS
+    // ============================
+
+    private void heading(
+            PDPageContentStream cs,
+            String value,
+            int y)
+            throws IOException {
+
+<span class="fc" id="L589">        cs.setNonStrokingColor(NAVY);</span>
+<span class="fc" id="L590">        write(cs, value, 50, y, 18, BOLD);</span>
+<span class="fc" id="L591">    }</span>
+
+    private void section(
+            PDPageContentStream cs,
+            String value,
+            int y)
+            throws IOException {
+
+<span class="fc" id="L599">        cs.setNonStrokingColor(NAVY);</span>
+<span class="fc" id="L600">        write(cs, value, 50, y, 13, BOLD);</span>
+<span class="fc" id="L601">    }</span>
+
+    private void text(
+            PDPageContentStream cs,
+            String value,
+            int x,
+            int y)
+            throws IOException {
+
+<span class="fc" id="L610">        cs.setNonStrokingColor(Color.DARK_GRAY);</span>
+<span class="fc" id="L611">        write(cs, value, x, y, 10, NORMAL);</span>
+<span class="fc" id="L612">    }</span>
+
+    private void footer(
+            PDPageContentStream cs,
+            String value)
+            throws IOException {
+
+<span class="fc" id="L619">        text(cs, value, 500, 35);</span>
+<span class="fc" id="L620">    }</span>
+
+    private void write(
+            PDPageContentStream cs,
+            String value,
+            int x,
+            int y,
+            int size,
+            PDType1Font font)
+            throws IOException {
+
+<span class="pc bpc" id="L631" title="1 of 2 branches missed.">        String safe = value == null</span>
+<span class="nc" id="L632">                ? &quot;&quot;</span>
+<span class="fc" id="L633">                : value.replaceAll(&quot;[^\\x20-\\x7E]&quot;, &quot;?&quot;);</span>
+
+<span class="pc bpc" id="L635" title="1 of 2 branches missed.">        if (safe.length() &gt; 90) {</span>
+<span class="nc" id="L636">            safe = safe.substring(0, 87) + &quot;...&quot;;</span>
+        }
+
+<span class="fc" id="L639">        cs.beginText();</span>
+<span class="fc" id="L640">        cs.setFont(font, size);</span>
+<span class="fc" id="L641">        cs.newLineAtOffset(x, y);</span>
+<span class="fc" id="L642">        cs.showText(safe);</span>
+<span class="fc" id="L643">        cs.endText();</span>
+<span class="fc" id="L644">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
