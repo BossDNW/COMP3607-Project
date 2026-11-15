@@ -53,7 +53,7 @@ public class EditMonitorTest {
 
         Files.writeString(source, "class New { int y; }");
 
-        Files.setLastModifiedTime(source, FileTime.fromMillis(Files.getLastModifiedTimes(source).toMillis() + 2000));
+        Files.setLastModifiedTime(source, FileTime.fromMillis(Files.getLastModifiedTime(source).toMillis() + 2000));
 
         monitor.check(session);
         assertEquals(1, session.getStats().getEdits());
