@@ -36,4 +36,38 @@ public class EditMonitor {
         }
     }
 
+    //Stop monitoring a closed package directory.
+    public synchronized void unwatch(Path folder){
+        watched.remove(folder);
+    }
+
+    public synchronized void clear(){
+        watched.clear();
+    }
+
+    //Find current timestamps of source files
+    private Map<Path, Long> scan(Path folder){
+        Map<Path, Long> result= new HashMap<>();
+        
+        if (!Files.isDirectory(folder)){
+            return result;
+        }
+
+        try (Stream<Path> paths= Files.list(folder)){
+            paths.filter(Files::isRegularFile).forEach(path -> {
+                String name= path.getFileName().toString().toLowerCase();
+                if (name.endsWith(" .java") || name.endsWith(" .stride")){
+                    try{ 
+                        result.put(path, Files.getLastModifiedTime(path).toMillis());
+                    } catch (IOException e){
+                        //skip an unreaddable file
+                    }
+                }
+            });
+        } catch (IOException ignored){
+            //Skip a directory that is unavailable.
+        }
+        return result;
+    }
+
 }
