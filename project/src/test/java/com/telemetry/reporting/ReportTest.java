@@ -23,6 +23,7 @@ public class ReportTest
     void jsonIncludeStatistics() throws Exception
     {
         Session session = new Session();
+        session.setStudentId("TEST123");
         session.start("Demo");
 
         session.record("COMPILATION_STARTED", "", "");
@@ -79,13 +80,7 @@ public class ReportTest
         assertEquals(1, json.getAsJsonObject("error_frequencies").get("Line 4: missing ;").getAsInt());
 
         assertTrue(json.getAsJsonArray("events").size() >= 4);
-        assertTrue(
-            json.getAsJsonArray()
-            .get(0)
-            .getAsJsonObject()
-            .get("timestamp")
-            .getAsString()
-            .contains("T"));
+        assertTrue(json.getAsJsonArray("events").get(0).getAsJsonObject().get("timestamp").getAsString().contains("T"));
     }
 
     @Test 

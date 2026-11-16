@@ -56,7 +56,7 @@ public class EditMonitor {
         try (Stream<Path> paths= Files.list(folder)){
             paths.filter(Files::isRegularFile).forEach(path -> {
                 String name= path.getFileName().toString().toLowerCase();
-                if (name.endsWith(" .java") || name.endsWith(" .stride")){
+                if (name.endsWith(".java") || name.endsWith(".stride")){
                     try{ 
                         result.put(path, Files.getLastModifiedTime(path).toMillis());
                     } catch (IOException e){

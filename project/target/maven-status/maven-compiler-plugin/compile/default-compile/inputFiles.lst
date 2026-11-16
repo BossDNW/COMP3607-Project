@@ -1,2 +1,11 @@
-C:\Users\dmari\Documents\GitHub\COMP3607-Project\project\src\main\java\com\telemetry\extension\BlueJTelemetryExtension.java
+C:\Users\dmari\Documents\GitHub\COMP3607-Project\project\src\main\java\com\telemetry\integration\BlueJTelemetryExtension.java
+C:\Users\dmari\Documents\GitHub\COMP3607-Project\project\src\main\java\com\telemetry\integration\Session.java
+C:\Users\dmari\Documents\GitHub\COMP3607-Project\project\src\main\java\com\telemetry\integration\TelemetryEvent.java
+C:\Users\dmari\Documents\GitHub\COMP3607-Project\project\src\main\java\com\telemetry\integration\TelemetryObserver.java
 C:\Users\dmari\Documents\GitHub\COMP3607-Project\project\src\main\java\com\telemetry\Main.java
+C:\Users\dmari\Documents\GitHub\COMP3607-Project\project\src\main\java\com\telemetry\monitoring\EditMonitor.java
+C:\Users\dmari\Documents\GitHub\COMP3607-Project\project\src\main\java\com\telemetry\monitoring\SessionStats.java
+C:\Users\dmari\Documents\GitHub\COMP3607-Project\project\src\main\java\com\telemetry\reporting\JsonReport.java
+C:\Users\dmari\Documents\GitHub\COMP3607-Project\project\src\main\java\com\telemetry\reporting\PdfReport.java
+C:\Users\dmari\Documents\GitHub\COMP3607-Project\project\src\main\java\com\telemetry\reporting\ReportExporter.java
+C:\Users\dmari\Documents\GitHub\COMP3607-Project\project\src\main\java\com\telemetry\reporting\ReportFactory.java

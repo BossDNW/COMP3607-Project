@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JsonReport.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">bluej-telemetry</a> &gt; <a href="index.source.html" class="el_package">com.telemetry.reporting</a> &gt; <span class="el_source">JsonReport.java</span></div><h1>JsonReport.java</h1><pre class="source lang-java linenums">package com.telemetry.reporting;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import com.telemetry.integration.Session;
+import com.telemetry.monitoring.SessionStats;
+import com.telemetry.integration.TelemetryEvent;
+
+<span class="fc" id="L19">public class JsonReport implements ReportExporter</span>
+{
+
+    @Override
+    public void export(Session session, Path output) throws IOException
+    {
+<span class="fc" id="L25">        SessionStats stats = session.getStats();</span>
+
+<span class="fc" id="L27">        Map&lt;String, Object&gt; report = new LinkedHashMap&lt;&gt;();</span>
+
+<span class="fc" id="L29">        report.put(&quot;student_id&quot;, session.getStudentId());</span>
+<span class="fc" id="L30">        report.put(&quot;project&quot;, session.getProject());</span>
+
+<span class="fc" id="L32">        report.put(&quot;session_start&quot;, String.valueOf(session.getStart()));</span>
+<span class="fc" id="L33">        report.put(&quot;session_end&quot;, String.valueOf(session.getEnd()));</span>
+<span class="fc" id="L34">        report.put(&quot;session_duration_seconds&quot;, session.durationSeconds());</span>
+
+<span class="fc" id="L36">        report.put(&quot;active_time_seconds&quot;, SessionStats.activeSeconds(session));</span>
+<span class="fc" id="L37">        report.put(&quot;idle_time_seconds&quot;, SessionStats.idleSeconds(session));</span>
+
+<span class="fc" id="L39">        report.put(</span>
+            &quot;activity_measurement&quot;,
+            &quot;Estimated using a 180-second inactivity threshold&quot;);
+        
+<span class="fc" id="L43">        report.put(&quot;total_compilations&quot;, stats.getAttempts());</span>
+<span class="fc" id="L44">        report.put(&quot;successful_compilations&quot;, stats.getSuccesses());</span>
+<span class="fc" id="L45">        report.put(&quot;failed_compilations&quot;, stats.getFailures());</span>
+<span class="fc" id="L46">        report.put(&quot;success_rate_percent&quot;, stats.getSuccessRate());</span>
+
+<span class="fc" id="L48">        report.put(&quot;saved_edit_events&quot;, stats.getEdits());</span>
+<span class="fc" id="L49">        report.put(&quot;program_executions&quot;, stats.getRuns());</span>
+<span class="fc" id="L50">        report.put(&quot;runtime_exceptions&quot;, stats.getRuntimeErrors());</span>
+
+<span class="fc" id="L52">        report.put(&quot;error_frequencies&quot;, stats.getErrors());</span>
+
+<span class="fc" id="L54">        report.put(</span>
+                &quot;compilation_intervals_seconds&quot;,
+<span class="fc" id="L56">                stats.getCompileIntervals());</span>
+
+<span class="fc" id="L58">        List&lt;Map&lt;String, String&gt;&gt; entries = new ArrayList&lt;&gt;();</span>
+
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        for(TelemetryEvent event : session.getEvents())</span>
+        {
+<span class="fc" id="L62">            Map&lt;String, String&gt; item = new LinkedHashMap&lt;&gt;();</span>
+
+<span class="fc" id="L64">            item.put(&quot;type&quot;, event.getType());</span>
+<span class="fc" id="L65">            item.put(&quot;timestamp&quot;, event.getTime().toString());</span>
+<span class="fc" id="L66">            item.put(&quot;name&quot;, event.getName());</span>
+<span class="fc" id="L67">            item.put(&quot;details&quot;, event.getDetails());</span>
+
+<span class="fc" id="L69">            entries.add(item);</span>
+<span class="fc" id="L70">        }</span>
+
+<span class="fc" id="L72">        report.put(&quot;events&quot;, entries);</span>
+
+<span class="fc" id="L74">        Gson gson = new GsonBuilder().setPrettyPrinting().create();</span>
+
+<span class="fc" id="L76">        Path parent = output.toAbsolutePath().getParent();</span>
+<span class="pc bpc" id="L77" title="1 of 2 branches missed.">        if(parent != null) Files.createDirectories(parent);</span>
+<span class="fc" id="L78">        Files.writeString(output, gson.toJson(report), StandardCharsets.UTF_8);</span>
+<span class="fc" id="L79">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

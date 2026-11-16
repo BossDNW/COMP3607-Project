@@ -1,2 +1,14 @@
-com\telemetry\extension\BlueJTelemetryExtension.class
+com\telemetry\integration\TelemetryEvent.class
+com\telemetry\reporting\ReportFactory$JsonFactory.class
 com\telemetry\Main.class
+com\telemetry\reporting\PdfReport.class
+com\telemetry\reporting\ReportExporter.class
+com\telemetry\reporting\ReportFactory.class
+com\telemetry\monitoring\EditMonitor.class
+com\telemetry\integration\BlueJTelemetryExtension.class
+com\telemetry\integration\Session.class
+com\telemetry\reporting\ReportFactory$PdfFactory.class
+com\telemetry\integration\BlueJTelemetryExtension$1.class
+com\telemetry\monitoring\SessionStats.class
+com\telemetry\reporting\JsonReport.class
+com\telemetry\integration\TelemetryObserver.class

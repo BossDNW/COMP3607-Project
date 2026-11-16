@@ -134,27 +134,34 @@ public class PdfReport implements ReportExporter
         }
     }
 
-    private void drawBar(PDPageContentStream page, float x, float y, float width, long first, long second) throws IOException
-    {
+
+    private void drawBar(PDPageContentStream page, float x, float y,
+                        float width, long first, long second)
+            throws IOException {
+
         long total = first + second;
-        float filled = total == 0 ? 0 : width / total;
 
-        page.setNonStrokingColor(70, 120, 185);
+        float filled = total == 0
+                ? 0
+                : width * first / total;
 
-        if(filled > 0)
-        {
+        page.setNonStrokingColor(
+                new java.awt.Color(70, 120, 185));
+
+        if (filled > 0) {
             page.addRect(x, y, filled, 18);
             page.fill();
         }
 
-        page.setNonStrokingColor(200, 205, 215);
+        page.setNonStrokingColor(
+                new java.awt.Color(200, 205, 215));
 
-        if(width - filled > 0)
-        {
+        if (width - filled > 0) {
             page.addRect(x + filled, y, width - filled, 18);
             page.fill();
         }
     }
+
 
     private void line(PDPageContentStream page, String value, float x, float y, boolean heading) throws IOException
     {
@@ -162,7 +169,7 @@ public class PdfReport implements ReportExporter
 
         if (safe.length() > 88) safe = safe.substring(0, 85) + "...";
 
-        page.setNonStrokingColor(35, 45, 60);
+        page.setNonStrokingColor(new java.awt.Color(35, 45, 60));
         page.beginText();
         page.setFont(heading ? FONT_BOLD : FONT, heading ? 14 : 10);
         page.newLineAtOffset(x, y);

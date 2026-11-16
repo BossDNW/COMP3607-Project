@@ -1,16 +1,13 @@
 GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
-project,com.telemetry.session,SessionManager,5,98,3,7,2,32,3,12,0,10
-project,com.telemetry.events,TelemetryEventBus,0,41,0,2,0,12,0,5,0,4
-project,com.telemetry.events,TelemetryEvent,4,39,1,1,1,13,1,6,0,6
-project,com.telemetry.events,EventType,0,87,0,0,0,15,0,1,0,1
-project,com.telemetry.extension,BlueJTelemetryExtension,390,403,43,27,102,125,44,19,15,13
-project,com.telemetry.extension,BlueJTelemetryExtension.new MenuGenerator() {...},146,0,14,0,36,0,13,0,6,0
-project,com.telemetry,Main,7,0,0,0,3,0,2,0,2,0
-project,com.telemetry.reports,PdfReportGenerator,30,956,20,46,8,221,19,29,0,15
-project,com.telemetry.reports,ReportService,127,32,4,0,40,7,8,1,6,1
-project,com.telemetry.reports,JsonExporter,29,438,13,19,7,114,11,13,1,7
-project,com.telemetry.reports,JsonExporterCreator,0,7,0,0,0,2,0,2,0,2
-project,com.telemetry.reports,PdfExporterCreator,0,7,0,0,0,2,0,2,0,2
-project,com.telemetry.reports,ReportExporterCreator,0,11,0,0,0,4,0,2,0,2
-project,com.telemetry.analytics,ActivityTimeAnalyzer,7,101,7,15,2,30,7,7,0,3
-project,com.telemetry.analytics,TelemetryAnalyzer,0,179,0,16,0,45,0,21,0,13
+bluej-telemetry,com.telemetry.monitoring,EditMonitor,4,145,2,12,3,30,2,13,0,8
+bluej-telemetry,com.telemetry.monitoring,SessionStats,2,218,2,16,1,45,2,23,0,13
+bluej-telemetry,com.telemetry.integration,BlueJTelemetryExtension.new MenuGenerator() {...},89,6,4,0,19,1,6,1,4,1
+bluej-telemetry,com.telemetry.integration,Session,10,209,4,16,3,55,5,25,1,19
+bluej-telemetry,com.telemetry.integration,TelemetryEvent,0,27,0,0,0,10,0,5,0,5
+bluej-telemetry,com.telemetry.integration,BlueJTelemetryExtension,195,383,39,31,60,105,32,29,7,19
+bluej-telemetry,com.telemetry,Main,7,0,0,0,3,0,2,0,2,0
+bluej-telemetry,com.telemetry.reporting,ReportFactory.JsonFactory,0,7,0,0,0,2,0,2,0,2
+bluej-telemetry,com.telemetry.reporting,PdfReport,81,463,19,19,13,78,16,8,0,5
+bluej-telemetry,com.telemetry.reporting,JsonReport,0,204,1,3,0,36,1,3,0,2
+bluej-telemetry,com.telemetry.reporting,ReportFactory.PdfFactory,0,7,0,0,0,2,0,2,0,2
+bluej-telemetry,com.telemetry.reporting,ReportFactory,0,3,0,0,0,1,0,1,0,1

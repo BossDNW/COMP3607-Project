@@ -1,0 +1,382 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BlueJTelemetryExtension.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">bluej-telemetry</a> &gt; <a href="index.source.html" class="el_package">com.telemetry.integration</a> &gt; <span class="el_source">BlueJTelemetryExtension.java</span></div><h1>BlueJTelemetryExtension.java</h1><pre class="source lang-java linenums">
+package com.telemetry.integration;
+
+import com.telemetry.monitoring.*;
+import com.telemetry.reporting.*;
+
+import bluej.extensions2.*;
+import bluej.extensions2.event.*;
+
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextInputDialog;
+
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.prefs.Preferences;
+
+/** Connects the session tracker to BlueJ event callbacks. */
+<span class="fc" id="L27">public class BlueJTelemetryExtension extends Extension</span>
+        implements PackageListener, ClassListener,
+                   CompileListener, InvocationFinishedListener {
+
+<span class="fc" id="L31">    private final Preferences settings =</span>
+<span class="fc" id="L32">            Preferences.userNodeForPackage(</span>
+                    BlueJTelemetryExtension.class);
+
+<span class="fc" id="L35">    private final Map&lt;String, Set&lt;String&gt;&gt; knownClasses =</span>
+            new HashMap&lt;&gt;();
+
+<span class="fc" id="L38">    private final Set&lt;String&gt; openPackages = new HashSet&lt;&gt;();</span>
+
+<span class="fc" id="L40">    private final EditMonitor editMonitor = new EditMonitor();</span>
+
+<span class="fc" id="L42">    private final ScheduledExecutorService worker =</span>
+<span class="fc" id="L43">            Executors.newSingleThreadScheduledExecutor();</span>
+
+    private volatile Session session;
+
+    @Override
+    public void startup(BlueJ bluej) {
+<span class="fc" id="L49">        bluej.addPackageListener(this);</span>
+<span class="fc" id="L50">        bluej.addClassListener(this);</span>
+<span class="fc" id="L51">        bluej.addCompileListener(this);</span>
+<span class="fc" id="L52">        bluej.addInvocationFinishedListener(this);</span>
+
+<span class="fc" id="L54">        bluej.setMenuGenerator(new MenuGenerator() {</span>
+            @Override
+            public MenuItem getToolsMenuItem(BPackage pkg) {
+<span class="nc" id="L57">                Menu menu = new Menu(&quot;BlueJ Telemetry&quot;);</span>
+
+<span class="nc" id="L59">                MenuItem export =</span>
+                        new MenuItem(&quot;Export Reports&quot;);
+
+<span class="nc" id="L62">                export.setOnAction(e -&gt; exportReports());</span>
+
+<span class="nc" id="L64">                MenuItem setId =</span>
+                        new MenuItem(&quot;Set Student ID&quot;);
+
+<span class="nc" id="L67">                setId.setOnAction(e -&gt; {</span>
+<span class="nc" id="L68">                    TextInputDialog dialog =</span>
+                            new TextInputDialog(
+<span class="nc" id="L70">                                    settings.get(&quot;studentId&quot;, &quot;&quot;));</span>
+
+<span class="nc" id="L72">                    dialog.setTitle(&quot;BlueJ Telemetry&quot;);</span>
+<span class="nc" id="L73">                    dialog.setHeaderText(&quot;Student Identification&quot;);</span>
+<span class="nc" id="L74">                    dialog.setContentText(&quot;Student ID:&quot;);</span>
+
+<span class="nc" id="L76">                    dialog.showAndWait().ifPresent(id -&gt; {</span>
+<span class="nc bnc" id="L77" title="All 2 branches missed.">                        if (!id.isBlank()) {</span>
+<span class="nc" id="L78">                            settings.put(&quot;studentId&quot;, id.trim());</span>
+
+<span class="nc bnc" id="L80" title="All 2 branches missed.">                            if (session != null) {</span>
+<span class="nc" id="L81">                                session.setStudentId(id.trim());</span>
+                            }
+                        }
+<span class="nc" id="L84">                    });</span>
+<span class="nc" id="L85">                });</span>
+
+<span class="nc" id="L87">                menu.getItems().addAll(export, setId);</span>
+<span class="nc" id="L88">                return menu;</span>
+            }
+        });
+
+<span class="fc" id="L92">        worker.scheduleAtFixedRate(() -&gt; {</span>
+<span class="nc" id="L93">            Session current = session;</span>
+
+<span class="nc bnc" id="L95" title="All 4 branches missed.">            if (current != null &amp;&amp; current.isActive()) {</span>
+<span class="nc" id="L96">                editMonitor.check(current);</span>
+            }
+<span class="nc" id="L98">        }, 5, 5, TimeUnit.SECONDS);</span>
+
+<span class="fc" id="L100">        worker.scheduleAtFixedRate(() -&gt; {</span>
+<span class="nc" id="L101">            Session current = session;</span>
+
+<span class="nc bnc" id="L103" title="All 4 branches missed.">            if (current != null &amp;&amp; current.isActive()) {</span>
+<span class="nc" id="L104">                save(current.snapshot(), &quot;autosave-current&quot;);</span>
+            }
+<span class="nc" id="L106">        }, 60, 60, TimeUnit.SECONDS);</span>
+<span class="fc" id="L107">    }</span>
+
+    @Override
+    public void packageOpened(PackageEvent event) {
+        try {
+<span class="fc" id="L112">            BPackage pkg = event.getPackage();</span>
+
+<span class="fc" id="L114">            String key = pkg.getDir().getAbsolutePath();</span>
+<span class="fc" id="L115">            String projectName = pkg.getProject().getName();</span>
+
+<span class="fc" id="L117">            openPackages.add(key);</span>
+
+<span class="fc" id="L119">            Set&lt;String&gt; names = new HashSet&lt;&gt;();</span>
+
+<span class="fc bfc" id="L121" title="All 2 branches covered.">            for (BClass cls : pkg.getClasses()) {</span>
+<span class="fc" id="L122">                names.add(cls.getName());</span>
+            }
+
+<span class="fc" id="L125">            knownClasses.put(key, names);</span>
+<span class="fc" id="L126">            editMonitor.watch(pkg.getDir().toPath());</span>
+
+<span class="pc bpc" id="L128" title="3 of 4 branches missed.">            if (session == null || !session.isActive()) {</span>
+<span class="fc" id="L129">                session = new Session();</span>
+
+<span class="fc" id="L131">                session.setStudentId(</span>
+<span class="fc" id="L132">                        settings.get(&quot;studentId&quot;, &quot;STUDENT_ID&quot;));</span>
+
+<span class="fc" id="L134">                session.setProjectDirectory(</span>
+<span class="fc" id="L135">                        pkg.getProject().getDir().toPath());</span>
+
+<span class="fc" id="L137">                session.start(projectName);</span>
+            }
+<span class="nc" id="L139">        } catch (ExtensionException ex) {</span>
+<span class="nc" id="L140">            System.err.println(</span>
+<span class="nc" id="L141">                    &quot;BlueJ telemetry: &quot; + ex.getMessage());</span>
+<span class="fc" id="L142">        }</span>
+<span class="fc" id="L143">    }</span>
+
+    @Override
+    public void packageClosing(PackageEvent event) {
+<span class="nc" id="L147">        String key = directory(event.getPackage());</span>
+
+<span class="nc bnc" id="L149" title="All 2 branches missed.">        if (key != null) {</span>
+<span class="nc" id="L150">            openPackages.remove(key);</span>
+<span class="nc" id="L151">            knownClasses.remove(key);</span>
+<span class="nc" id="L152">            editMonitor.unwatch(Path.of(key));</span>
+        }
+
+<span class="nc bnc" id="L155" title="All 2 branches missed.">        if (openPackages.isEmpty()) {</span>
+<span class="nc" id="L156">            finishSession();</span>
+        }
+<span class="nc" id="L158">    }</span>
+
+    private String directory(BPackage pkg) {
+        try {
+<span class="fc" id="L162">            return pkg.getDir().getAbsolutePath();</span>
+<span class="nc" id="L163">        } catch (ExtensionException ex) {</span>
+<span class="nc" id="L164">            return null;</span>
+        }
+    }
+
+    private void record(String type, String name, String details) {
+<span class="fc" id="L169">        Session current = session;</span>
+
+<span class="pc bpc" id="L171" title="1 of 2 branches missed.">        if (current != null) {</span>
+<span class="fc" id="L172">            current.record(type, name, details);</span>
+        }
+<span class="fc" id="L174">    }</span>
+
+    @Override
+    public void classStateChanged(ClassEvent event) {
+<span class="fc" id="L178">        String key = directory(event.getPackage());</span>
+<span class="fc" id="L179">        Set&lt;String&gt; names = knownClasses.get(key);</span>
+
+<span class="pc bpc" id="L181" title="1 of 2 branches missed.">        if (names == null) {</span>
+<span class="nc" id="L182">            return;</span>
+        }
+
+<span class="fc" id="L185">        String name = event.getBClass().getName();</span>
+
+<span class="fc bfc" id="L187" title="All 2 branches covered.">        if (names.add(name)) {</span>
+<span class="fc" id="L188">            record(&quot;CLASS_CREATED&quot;, name, &quot;&quot;);</span>
+<span class="pc bpc" id="L189" title="1 of 4 branches missed.">        } else if (!event.isClassCompiled() &amp;&amp; !event.hasError()) {</span>
+<span class="fc" id="L190">            record(&quot;CLASS_MODIFIED&quot;, name, &quot;&quot;);</span>
+        }
+<span class="fc" id="L192">    }</span>
+
+    @Override
+    public void classNameChanged(ClassEvent event) {
+<span class="fc" id="L196">        String key = directory(event.getPackage());</span>
+<span class="fc" id="L197">        Set&lt;String&gt; names = knownClasses.get(key);</span>
+
+<span class="fc" id="L199">        String oldName = event.getOldName();</span>
+<span class="fc" id="L200">        String newName = event.getBClass().getName();</span>
+
+<span class="pc bpc" id="L202" title="1 of 2 branches missed.">        if (names != null) {</span>
+<span class="fc" id="L203">            names.remove(oldName);</span>
+<span class="fc" id="L204">            names.add(newName);</span>
+        }
+
+<span class="fc" id="L207">        record(&quot;CLASS_RENAMED&quot;, newName,</span>
+                &quot;Previously: &quot; + oldName);
+<span class="fc" id="L209">    }</span>
+
+    @Override
+    public void classRemoved(ClassEvent event) {
+<span class="fc" id="L213">        String key = directory(event.getPackage());</span>
+<span class="fc" id="L214">        String name = event.getBClass().getName();</span>
+
+<span class="fc" id="L216">        Set&lt;String&gt; names = knownClasses.get(key);</span>
+
+<span class="pc bpc" id="L218" title="1 of 2 branches missed.">        if (names != null) {</span>
+<span class="fc" id="L219">            names.remove(name);</span>
+        }
+
+<span class="fc" id="L222">        record(&quot;CLASS_DELETED&quot;, name, &quot;&quot;);</span>
+<span class="fc" id="L223">    }</span>
+
+    @Override
+    public void compileStarted(CompileEvent event) {
+<span class="fc bfc" id="L227" title="All 2 branches covered.">        if (event.isUserGeneratedCompilation()) {</span>
+<span class="fc" id="L228">            record(&quot;COMPILATION_STARTED&quot;, &quot;&quot;, &quot;&quot;);</span>
+        }
+<span class="fc" id="L230">    }</span>
+
+    @Override
+    public void compileSucceeded(CompileEvent event) {
+<span class="fc bfc" id="L234" title="All 2 branches covered.">        if (event.isUserGeneratedCompilation()) {</span>
+<span class="fc" id="L235">            record(&quot;COMPILATION_SUCCESS&quot;, &quot;&quot;, &quot;&quot;);</span>
+        }
+<span class="fc" id="L237">    }</span>
+
+    @Override
+    public void compileFailed(CompileEvent event) {
+<span class="fc bfc" id="L241" title="All 2 branches covered.">        if (event.isUserGeneratedCompilation()) {</span>
+<span class="fc" id="L242">            record(&quot;COMPILATION_FAILURE&quot;, &quot;&quot;, &quot;&quot;);</span>
+        }
+<span class="fc" id="L244">    }</span>
+
+    @Override
+    public void compileError(CompileEvent event) {
+<span class="fc bfc" id="L248" title="All 2 branches covered.">        if (event.isUserGeneratedCompilation()) {</span>
+<span class="fc" id="L249">            record(&quot;COMPILATION_ERROR&quot;, &quot;&quot;,</span>
+<span class="fc" id="L250">                    &quot;Line &quot; + event.getErrorLineNumber()</span>
+<span class="fc" id="L251">                            + &quot;: &quot; + event.getErrorMessage());</span>
+        }
+<span class="fc" id="L253">    }</span>
+
+    @Override
+    public void compileWarning(CompileEvent event) {
+<span class="fc bfc" id="L257" title="All 2 branches covered.">        if (event.isUserGeneratedCompilation()) {</span>
+<span class="fc" id="L258">            record(&quot;COMPILATION_WARNING&quot;, &quot;&quot;,</span>
+<span class="fc" id="L259">                    event.getErrorMessage());</span>
+        }
+<span class="fc" id="L261">    }</span>
+
+    @Override
+    public void invocationFinished(InvocationFinishedEvent event) {
+<span class="pc bpc" id="L265" title="2 of 4 branches missed.">        if (session == null || !session.isActive()) {</span>
+<span class="nc" id="L266">            return;</span>
+        }
+
+<span class="fc" id="L269">        String name = event.getClassName();</span>
+
+<span class="fc bfc" id="L271" title="All 2 branches covered.">        String method = event.getMethodName() == null</span>
+<span class="fc" id="L272">                ? &quot;&lt;constructor&gt;&quot;</span>
+<span class="fc" id="L273">                : event.getMethodName();</span>
+
+<span class="pc bpc" id="L275" title="1 of 2 branches missed.">        String status = event.getEventType() == null</span>
+<span class="nc" id="L276">                ? &quot;UNKNOWN&quot;</span>
+<span class="fc" id="L277">                : event.getEventType().name();</span>
+
+<span class="fc" id="L279">        record(&quot;PROGRAM_EXECUTED&quot;, name, method + &quot;: &quot; + status);</span>
+
+<span class="fc bfc" id="L281" title="All 2 branches covered.">        if (event.getEventType()</span>
+                == InvocationFinishedEvent.EventType.EXCEPTION_EXIT) {
+<span class="fc" id="L283">            record(&quot;RUNTIME_ERROR&quot;, name, method + &quot;: &quot; + status);</span>
+        }
+<span class="fc" id="L285">    }</span>
+
+    private void exportReports() {
+<span class="nc" id="L288">        Session current = session;</span>
+
+<span class="nc bnc" id="L290" title="All 4 branches missed.">        if (current == null || current.getStart() == null) {</span>
+<span class="nc" id="L291">            return;</span>
+        }
+
+<span class="nc" id="L294">        Session snapshot = current.snapshot();</span>
+
+<span class="nc" id="L296">        String stamp = LocalDateTime.now().format(</span>
+<span class="nc" id="L297">                DateTimeFormatter.ofPattern(&quot;yyyyMMdd-HHmmss-SSS&quot;));</span>
+
+<span class="nc bnc" id="L299" title="All 2 branches missed.">        String project = snapshot.getProject() == null</span>
+<span class="nc" id="L300">                ? &quot;project&quot;</span>
+<span class="nc" id="L301">                : snapshot.getProject().replaceAll(</span>
+                        &quot;[^a-zA-Z0-9_-]&quot;, &quot;_&quot;);
+
+<span class="nc" id="L304">        worker.execute(() -&gt;</span>
+<span class="nc" id="L305">                save(snapshot, project + &quot;-session-&quot; + stamp));</span>
+<span class="nc" id="L306">    }</span>
+
+    private void save(Session copy, String filename) {
+        try {
+<span class="nc" id="L310">            Path folder = Path.of(</span>
+<span class="nc" id="L311">                    System.getProperty(&quot;user.home&quot;),</span>
+                    &quot;bluej&quot;, &quot;telemetry-reports&quot;);
+
+            Path jsonFolder =
+<span class="nc bnc" id="L315" title="All 2 branches missed.">                    copy.getProjectDirectory() == null</span>
+<span class="nc" id="L316">                            ? folder</span>
+<span class="nc" id="L317">                            : copy.getProjectDirectory()</span>
+<span class="nc" id="L318">                                  .resolve(&quot;telemetry&quot;);</span>
+
+<span class="nc" id="L320">            new ReportFactory.JsonFactory()</span>
+<span class="nc" id="L321">                    .createReport()</span>
+<span class="nc" id="L322">                    .export(copy, jsonFolder.resolve(filename + &quot;.json&quot;));</span>
+
+<span class="nc bnc" id="L324" title="All 2 branches missed.">            if (!filename.startsWith(&quot;autosave&quot;)) {</span>
+<span class="nc" id="L325">                new ReportFactory.PdfFactory()</span>
+<span class="nc" id="L326">                        .createReport()</span>
+<span class="nc" id="L327">                        .export(copy, folder.resolve(filename + &quot;.pdf&quot;));</span>
+            }
+
+<span class="nc" id="L330">        } catch (Exception ex) {</span>
+<span class="nc" id="L331">            System.err.println(</span>
+<span class="nc" id="L332">                    &quot;Report failed: &quot; + ex.getMessage());</span>
+<span class="nc" id="L333">        }</span>
+<span class="nc" id="L334">    }</span>
+
+    private void finishSession() {
+<span class="fc" id="L337">        Session current = session;</span>
+
+<span class="pc bpc" id="L339" title="3 of 4 branches missed.">        if (current != null &amp;&amp; current.isActive()) {</span>
+<span class="nc" id="L340">            current.finish();</span>
+<span class="nc" id="L341">            exportReports();</span>
+        }
+
+<span class="fc" id="L344">        editMonitor.clear();</span>
+<span class="fc" id="L345">    }</span>
+
+    @Override
+    public void terminate() {
+<span class="fc" id="L349">        finishSession();</span>
+<span class="fc" id="L350">        worker.shutdown();</span>
+
+        try {
+<span class="pc bpc" id="L353" title="1 of 2 branches missed.">            if (!worker.awaitTermination(10, TimeUnit.SECONDS)) {</span>
+<span class="nc" id="L354">                System.err.println(</span>
+                        &quot;Telemetry: report export did not finish before shutdown.&quot;);
+            }
+<span class="nc" id="L357">        } catch (InterruptedException ex) {</span>
+<span class="nc" id="L358">            Thread.currentThread().interrupt();</span>
+<span class="fc" id="L359">        }</span>
+<span class="fc" id="L360">    }</span>
+
+    @Override
+    public boolean isCompatible() {
+<span class="nc bnc" id="L364" title="All 2 branches missed.">        return getExtensionsAPIVersionMajor() &gt;= 3;</span>
+    }
+
+    @Override
+    public String getName() {
+<span class="fc" id="L369">        return &quot;BlueJ Telemetry&quot;;</span>
+    }
+
+    @Override
+    public String getVersion() {
+<span class="fc" id="L374">        return &quot;2.0&quot;;</span>
+    }
+
+    @Override
+    public String getDescription() {
+<span class="fc" id="L379">        return &quot;Simple BlueJ coding session tracker&quot;;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

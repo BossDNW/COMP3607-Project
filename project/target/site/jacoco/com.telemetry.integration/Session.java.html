@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Session.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">bluej-telemetry</a> &gt; <a href="index.source.html" class="el_package">com.telemetry.integration</a> &gt; <span class="el_source">Session.java</span></div><h1>Session.java</h1><pre class="source lang-java linenums">package com.telemetry.integration;
+
+import java.nio.file.Path;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+
+import com.telemetry.monitoring.SessionStats;
+
+public class Session {
+    private String project;
+<span class="fc" id="L14">    private String studentId = &quot;STUDENT_ID&quot;;</span>
+    private Path projectDirectory;
+    private LocalDateTime start;
+    private LocalDateTime end;
+
+<span class="fc" id="L19">    private final List&lt;TelemetryEvent&gt; events = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L20">    private final List&lt;TelemetryObserver&gt; observers = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L21">    private final SessionStats stats = new SessionStats();</span>
+
+<span class="fc" id="L23">    public Session(){</span>
+<span class="fc" id="L24">        addObserver(stats);</span>
+<span class="fc" id="L25">    }</span>
+
+    public synchronized void addObserver(TelemetryObserver observer){
+<span class="fc" id="L28">        this.observers.add(observer);</span>
+<span class="fc" id="L29">    }</span>
+
+    public synchronized void removeObserver(TelemetryObserver observer){
+<span class="nc" id="L32">        this.observers.remove(observer);</span>
+<span class="nc" id="L33">    }</span>
+
+    private void notifyObservers(TelemetryEvent event){
+<span class="fc bfc" id="L36" title="All 2 branches covered.">        for (TelemetryObserver observer: this.observers){</span>
+<span class="fc" id="L37">            observer.update(event);</span>
+<span class="fc" id="L38">        }</span>
+<span class="fc" id="L39">    }</span>
+
+    private void addEvent(TelemetryEvent event){
+<span class="fc" id="L42">        this.events.add(event);</span>
+<span class="fc" id="L43">        notifyObservers(event);</span>
+<span class="fc" id="L44">    }</span>
+
+    public synchronized void record(String type, String name, String details){
+<span class="fc bfc" id="L47" title="All 4 branches covered.">        if (start == null || end != null){</span>
+<span class="fc" id="L48">            return;</span>
+        }
+
+<span class="fc" id="L51">        addEvent(new TelemetryEvent(type, LocalDateTime.now(), name, details));</span>
+<span class="fc" id="L52">    }</span>
+
+    public synchronized void start(String projectName){
+<span class="fc" id="L55">        this.project = projectName;</span>
+<span class="fc" id="L56">        this.start = LocalDateTime.now();</span>
+<span class="fc" id="L57">        this.end = null;</span>
+<span class="fc" id="L58">        events.clear();</span>
+<span class="fc" id="L59">        record(&quot;Project_Opened&quot;, projectName, &quot;&quot;);</span>
+<span class="fc" id="L60">    }</span>
+
+    public synchronized boolean isActive(){
+<span class="pc bpc" id="L63" title="1 of 4 branches missed.">        return this.start != null &amp;&amp; this.end == null;</span>
+    }
+
+    public synchronized void finish(){
+<span class="pc bpc" id="L67" title="1 of 2 branches missed.">        if (isActive()){</span>
+<span class="fc" id="L68">            record(&quot;Project_Closed&quot;,project,&quot;&quot;);</span>
+<span class="fc" id="L69">            this.end = LocalDateTime.now();</span>
+        }
+<span class="fc" id="L71">    }</span>
+
+    public synchronized Session snapshot(){
+<span class="fc" id="L74">        Session copy = new Session();</span>
+
+<span class="fc" id="L76">        copy.project = this.project;</span>
+<span class="fc" id="L77">        copy.studentId = this.studentId;</span>
+<span class="fc" id="L78">        copy.projectDirectory = this.projectDirectory;</span>
+<span class="fc" id="L79">        copy.start = this.start;</span>
+<span class="fc bfc" id="L80" title="All 2 branches covered.">        copy.end = end == null ? LocalDateTime.now(): end;</span>
+
+<span class="fc bfc" id="L82" title="All 2 branches covered.">        for (TelemetryEvent event : events){</span>
+<span class="fc" id="L83">            copy.addEvent(event);</span>
+<span class="fc" id="L84">        }</span>
+
+<span class="fc" id="L86">        return copy;</span>
+    }
+
+    public synchronized String getProject(){
+<span class="fc" id="L90">        return this.project;</span>
+    }
+
+    public synchronized Path getProjectDirectory(){
+<span class="fc" id="L94">        return this.projectDirectory;</span>
+    }
+
+    public synchronized void setProjectDirectory(Path dir){
+<span class="fc" id="L98">        this.projectDirectory = dir;</span>
+<span class="fc" id="L99">    }</span>
+
+    public synchronized String getStudentId(){
+<span class="fc" id="L102">        return this.studentId;</span>
+    }
+
+    public synchronized void setStudentId(String id){
+<span class="fc" id="L106">        this.studentId = id;</span>
+<span class="fc" id="L107">    }</span>
+
+    public synchronized LocalDateTime getStart() {
+<span class="fc" id="L110">        return this.start;</span>
+    }
+
+    public synchronized LocalDateTime getEnd() {
+<span class="fc" id="L114">        return this.end;</span>
+    }
+
+    public synchronized List&lt;TelemetryEvent&gt; getEvents() {
+<span class="fc" id="L118">        return new ArrayList&lt;&gt;(this.events);</span>
+    }
+
+    public synchronized SessionStats getStats() {
+<span class="fc" id="L122">        return this.stats;</span>
+    }
+
+    public synchronized long durationSeconds() {
+<span class="pc bpc" id="L126" title="1 of 2 branches missed.">        if (this.start == null) {</span>
+<span class="nc" id="L127">            return 0;</span>
+        }
+
+<span class="pc bpc" id="L130" title="1 of 2 branches missed.">        LocalDateTime stop = this.end == null ? LocalDateTime.now()  : this.end;</span>
+
+<span class="fc" id="L132">        return Math.max(0, Duration.between(this.start, stop).getSeconds());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PdfReport.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">bluej-telemetry</a> &gt; <a href="index.source.html" class="el_package">com.telemetry.reporting</a> &gt; <span class="el_source">PdfReport.java</span></div><h1>PdfReport.java</h1><pre class="source lang-java linenums">package com.telemetry.reporting;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+
+import com.telemetry.integration.Session;
+import com.telemetry.integration.TelemetryEvent;
+import com.telemetry.monitoring.SessionStats;
+
+<span class="fc" id="L20">public class PdfReport implements ReportExporter</span>
+{
+<span class="fc" id="L22">    private static final PDType1Font FONT = new PDType1Font(Standard14Fonts.FontName.HELVETICA);</span>
+<span class="fc" id="L23">    private static final PDType1Font FONT_BOLD = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);</span>
+
+    @Override 
+    public void export(Session session, Path output) throws IOException
+    {
+<span class="fc" id="L28">        Path parent = output.toAbsolutePath().getParent();</span>
+<span class="pc bpc" id="L29" title="1 of 2 branches missed.">        if(parent != null) Files.createDirectories(parent);</span>
+
+<span class="fc" id="L31">        SessionStats stats = session.getStats();</span>
+
+<span class="fc" id="L33">        try(PDDocument pdf = new PDDocument())</span>
+        {
+<span class="fc" id="L35">            PDPage first = new PDPage(PDRectangle.A4);</span>
+<span class="fc" id="L36">            pdf.addPage(first);</span>
+
+<span class="fc" id="L38">            try(PDPageContentStream page = new PDPageContentStream(pdf, first))</span>
+            {
+<span class="fc" id="L40">                line(page, &quot;BlueJ Telemetry Session Report&quot;, 50, 780, true);</span>
+
+<span class="fc" id="L42">                line(page, &quot;Student ID: &quot; + session.getStudentId(), 50, 750, false);</span>
+<span class="fc" id="L43">                line(page, &quot;Project: &quot; + session.getProject(), 50, 732, false);</span>
+
+<span class="fc" id="L45">                line(page, &quot;Session duration: &quot; + session.durationSeconds() + &quot; seconds&quot;, 50, 714, false);</span>
+<span class="fc" id="L46">                line(page, &quot;Total compilations: &quot; + stats.getAttempts(), 50, 682, false);</span>
+<span class="fc" id="L47">                line(page, &quot;Successful compilations: &quot; + stats.getSuccesses(), 50, 664, false);</span>
+<span class="fc" id="L48">                line(page, &quot;Failed compilations: &quot; + stats.getFailures(), 50, 646, false);</span>
+<span class="fc" id="L49">                line(page, String.format(&quot;Compilation success rate: %.1f%%&quot;, stats.getSuccessRate()), 50, 628, false);</span>
+
+<span class="fc" id="L51">                line(page, &quot;Chart 1: Compilation Results&quot;, 50, 592, true);</span>
+<span class="fc" id="L52">                drawBar(page, 50, 555, 450, stats.getSuccesses(), stats.getFailures());</span>
+<span class="fc" id="L53">                line(page, &quot;Success: &quot; + stats.getSuccesses() + &quot; Failed: &quot; + stats.getFailures(), 50, 535, false);</span>
+
+<span class="fc" id="L55">                long active = SessionStats.activeSeconds(session);</span>
+<span class="fc" id="L56">                long idle = SessionStats.idleSeconds(session);</span>
+<span class="fc" id="L57">                line(page, &quot;Chart 2: Active and Idle Time (estimated)&quot;, 50, 483, true);</span>
+<span class="fc" id="L58">                drawBar(page, 50, 446, 450, active, idle);</span>
+<span class="fc" id="L59">                line(page, &quot;Estimated active time: &quot; + active + &quot; seconds&quot;, 50, 427, false);</span>
+<span class="fc" id="L60">                line(page, &quot;Estimated idle time: &quot; + idle + &quot; seconds&quot;, 270, 427, false);</span>
+<span class="fc" id="L61">                line(page, &quot;Idle threshold: 180 seconds&quot;, 50, 409, false);</span>
+
+<span class="fc" id="L63">                line(page, &quot;Coding Activity&quot;, 50, 350, true);</span>
+<span class="fc" id="L64">                line(page, &quot;Saved edit events: &quot; + stats.getEdits(), 50, 326, false);</span>
+<span class="fc" id="L65">                line(page, &quot;Program executions: &quot; + stats.getRuns(), 50, 308, false);</span>
+<span class="fc" id="L66">                line(page, &quot;Runtime exceptions: &quot; + stats.getRuntimeErrors(), 50, 290, false);</span>
+
+<span class="fc" id="L68">                line(page, &quot;Page 1 of 2&quot;, 480, 42, false);</span>
+            }
+
+<span class="fc" id="L71">            PDPage second = new PDPage(PDRectangle.A4);</span>
+<span class="fc" id="L72">            pdf.addPage(second);</span>
+
+<span class="fc" id="L74">            try(PDPageContentStream page = new PDPageContentStream(pdf, second))</span>
+            {
+<span class="fc" id="L76">                line(page, &quot;BlueJ Telemetry - Errors and Timeline&quot;, 50, 780, true);</span>
+
+<span class="fc" id="L78">                line(page, &quot;Compilation Error Frequencies&quot;, 50, 744, true);</span>
+
+<span class="fc" id="L80">                int y = 722;</span>
+<span class="fc" id="L81">                Map&lt;String, Integer&gt; errors =</span>
+<span class="fc" id="L82">                        stats.getErrors();</span>
+
+<span class="pc bpc" id="L84" title="1 of 2 branches missed.">                if (errors.isEmpty())</span>
+                {
+<span class="fc" id="L86">                    line(page,</span>
+                            &quot;No compiler errors detected.&quot;,
+                            50, y, false);
+                }
+                else 
+                {
+<span class="nc bnc" id="L92" title="All 2 branches missed.">                    for (Map.Entry&lt;String, Integer&gt; entry : errors.entrySet())</span>
+                    {
+<span class="nc bnc" id="L94" title="All 2 branches missed.">                        if (y &lt; 625) break;</span>
+<span class="nc" id="L95">                        line(page, entry.getValue() + &quot; x &quot; + entry.getKey(), 50, y, false);</span>
+<span class="nc" id="L96">                        y -= 18;</span>
+<span class="nc" id="L97">                    }</span>
+                }
+
+<span class="fc" id="L100">                line(page, &quot;Compilation intervals (seconds): &quot; + stats.getCompileIntervals(), 50, 600, false);</span>
+
+<span class="fc" id="L102">                line(page, &quot;Development Timeline&quot;, 50, 558, true);</span>
+
+<span class="fc" id="L104">                int timelineY = 535;</span>
+<span class="fc" id="L105">                int shown = 0;</span>
+
+<span class="fc" id="L107">                List&lt;TelemetryEvent&gt; events = session.getEvents();</span>
+
+<span class="fc bfc" id="L109" title="All 2 branches covered.">                for (TelemetryEvent event : events)</span>
+                {
+<span class="pc bpc" id="L111" title="1 of 2 branches missed.">                    if (!event.getType().startsWith(&quot;CLASS_&quot;)</span>
+<span class="pc bpc" id="L112" title="1 of 2 branches missed.">                            &amp;&amp; !event.getType().equals(&quot;EDIT_ACTIVITY&quot;)</span>
+<span class="pc bpc" id="L113" title="1 of 2 branches missed.">                            &amp;&amp; !event.getType().equals(&quot;PROGRAM_EXECUTED&quot;)</span>
+<span class="pc bpc" id="L114" title="1 of 2 branches missed.">                            &amp;&amp; !event.getType().equals(&quot;RUNTIME_ERROR&quot;)) continue;</span>
+
+<span class="nc bnc" id="L116" title="All 2 branches missed.">                    if (timelineY &lt; 90) break;</span>
+
+<span class="nc" id="L118">                    String time = event.getTime().toLocalTime().withNano(0).toString();</span>
+
+<span class="nc" id="L120">                    line(page, time + &quot;  &quot; + event.getType() + &quot;  &quot; + event.getName(), 50, timelineY, false);</span>
+
+<span class="nc" id="L122">                    timelineY -= 19;</span>
+<span class="nc" id="L123">                    shown++;</span>
+<span class="nc" id="L124">                }</span>
+
+<span class="pc bpc" id="L126" title="1 of 2 branches missed.">                if (shown == 0) line(page, &quot;No class activity detected.&quot;, 50, 535, false);</span>
+
+<span class="pc bpc" id="L128" title="1 of 2 branches missed.">                if (events.size() &gt; shown) line(page, &quot;Full event history is available in JSON.&quot;, 50, 75, false);</span>
+
+<span class="fc" id="L130">                line(page, &quot;Page 2 of 2&quot;, 480, 42, false);</span>
+            }
+
+<span class="fc" id="L133">            pdf.save(output.toFile());</span>
+        }
+<span class="fc" id="L135">    }</span>
+
+
+    private void drawBar(PDPageContentStream page, float x, float y,
+                        float width, long first, long second)
+            throws IOException {
+
+<span class="fc" id="L142">        long total = first + second;</span>
+
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">        float filled = total == 0</span>
+<span class="fc" id="L145">                ? 0</span>
+<span class="pc" id="L146">                : width * first / total;</span>
+
+<span class="fc" id="L148">        page.setNonStrokingColor(</span>
+                new java.awt.Color(70, 120, 185));
+
+<span class="pc bpc" id="L151" title="1 of 2 branches missed.">        if (filled &gt; 0) {</span>
+<span class="nc" id="L152">            page.addRect(x, y, filled, 18);</span>
+<span class="nc" id="L153">            page.fill();</span>
+        }
+
+<span class="fc" id="L156">        page.setNonStrokingColor(</span>
+                new java.awt.Color(200, 205, 215));
+
+<span class="pc bpc" id="L159" title="1 of 2 branches missed.">        if (width - filled &gt; 0) {</span>
+<span class="fc" id="L160">            page.addRect(x + filled, y, width - filled, 18);</span>
+<span class="fc" id="L161">            page.fill();</span>
+        }
+<span class="fc" id="L163">    }</span>
+
+
+    private void line(PDPageContentStream page, String value, float x, float y, boolean heading) throws IOException
+    {
+<span class="pc bpc" id="L168" title="1 of 2 branches missed.">        String safe = value == null ? &quot;&quot; : value.replaceAll(&quot;[^\\x20-\\x7E]&quot;, &quot;?&quot;);</span>
+
+<span class="pc bpc" id="L170" title="1 of 2 branches missed.">        if (safe.length() &gt; 88) safe = safe.substring(0, 85) + &quot;...&quot;;</span>
+
+<span class="fc" id="L172">        page.setNonStrokingColor(new java.awt.Color(35, 45, 60));</span>
+<span class="fc" id="L173">        page.beginText();</span>
+<span class="fc bfc" id="L174" title="All 4 branches covered.">        page.setFont(heading ? FONT_BOLD : FONT, heading ? 14 : 10);</span>
+<span class="fc" id="L175">        page.newLineAtOffset(x, y);</span>
+<span class="fc" id="L176">        page.showText(safe);</span>
+<span class="fc" id="L177">        page.endText();</span>
+<span class="fc" id="L178">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

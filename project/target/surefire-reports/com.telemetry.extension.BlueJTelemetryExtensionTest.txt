@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.telemetry.extension.BlueJTelemetryExtensionTest
--------------------------------------------------------------------------------
-Tests run: 15, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.904 s -- in com.telemetry.extension.BlueJTelemetryExtensionTest

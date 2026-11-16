@@ -1,0 +1,6 @@
+com\telemetry\integration\BlueJEventsTest.class
+com\telemetry\monitoring\SessionStatsTest.class
+com\telemetry\reporting\ReportTest.class
+com\telemetry\integration\SessionTest.class
+com\telemetry\integration\BlueJExtensionLifecycleTest.class
+com\telemetry\monitoring\EditMonitorTest.class
