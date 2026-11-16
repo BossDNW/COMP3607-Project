@@ -28,7 +28,7 @@ public class EditMonitor {
                 Long previous = before.get(file.getKey());
 
                 if (previous != null && file.getValue() > previous){
-                    session.record("EDIT_ACTIVITY", file.getKey().getFileName().toString()), "Saved source file");
+                    session.record("EDIT_ACTIVITY", file.getKey().getFileName().toString(), "Saved source file");
                 }
             }
 
