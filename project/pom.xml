@@ -7,7 +7,7 @@
 
     <groupId>com.telemetry</groupId>
     <artifactId>bluej-telemetry</artifactId>
-    <version>2.0-SNAPSHOT</version>
+    <version>2.0</version>
 
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
@@ -99,7 +99,7 @@
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.telemetry.BlueJTelemetryExtension</mainClass>
+                                    <mainClass>com.telemetry.integration.BlueJTelemetryExtension</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
